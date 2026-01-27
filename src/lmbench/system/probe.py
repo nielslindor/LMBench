@@ -12,6 +12,42 @@ try:
 except ImportError:
     HAS_PYNVML = False
 
+class Telemetry:
+    def __init__(self):
+        self.peak_power = 0.0
+        self.max_temp = 0
+        self.active = False
+
+    def start(self):
+        self.active = True
+        self.peak_power = 0.0
+        self.max_temp = 0
+
+    def stop(self):
+        self.active = False
+
+    def poll(self):
+        if not HAS_PYNVML:
+            return
+        
+        try:
+            pynvml.nvmlInit()
+            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+            
+            # Power (mW to W)
+            power = pynvml.nvmlDeviceGetPowerUsage(handle) / 1000.0
+            if power > self.peak_power:
+                self.peak_power = power
+                
+            # Temp (C)
+            temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+            if temp > self.max_temp:
+                self.max_temp = temp
+                
+            pynvml.nvmlShutdown()
+        except Exception:
+            pass
+
 def get_gpu_info():
     """
     Detect GPU and VRAM information across platforms.

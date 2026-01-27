@@ -17,19 +17,28 @@ class Reporter:
         table = Table(title="Benchmark Results", box=None)
         table.add_column("Model", style="bold cyan")
         table.add_column("Test", style="yellow")
-        table.add_column("TTFT (ms)", style="green", justify="right")
+        table.add_column("Settings", style="dim")
+        table.add_column("TTFT", style="green", justify="right")
         table.add_column("TPS", style="magenta", justify="right")
-        table.add_column("Tokens", style="dim", justify="right")
-        table.add_column("Status", style="bold")
+        table.add_column("Power", justify="right")
+        table.add_column("Quality", justify="center")
 
         for r in results:
+            q_val = "-"
+            if r["quality_pass"] is True: q_val = "[bold green]PASS[/bold green]"
+            elif r["quality_pass"] is False: q_val = "[bold red]FAIL[/bold red]"
+            
+            settings = f"GPU:{r['options'].get('num_gpu', 'def')}" if r['options'] else "Default"
+            power_str = f"{r['peak_power_w']:.0f}W" if r['peak_power_w'] > 0 else "-"
+            
             table.add_row(
                 r["model"], 
                 r.get("test_name", "Default"),
-                f"{r['ttft_ms']:.2f}", 
-                f"{r['tps']:.2f}", 
-                str(r["total_tokens"]),
-                r["status"]
+                settings,
+                f"{r['ttft_ms']:.0f}ms", 
+                f"{r['tps']:.1f}", 
+                power_str,
+                q_val
             )
         
         self.console.print("\n")

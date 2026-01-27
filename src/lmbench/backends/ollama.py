@@ -14,9 +14,14 @@ class OllamaBackend(BaseBackend):
             pass
         return []
 
-    async def stream_generate(self, model: str, prompt: str) -> AsyncGenerator[Dict, None]:
+    async def stream_generate(self, model: str, prompt: str, options: Optional[Dict] = None) -> AsyncGenerator[Dict, None]:
         async with httpx.AsyncClient(timeout=None) as client:
-            payload = {"model": model, "prompt": prompt, "stream": True}
+            payload = {
+                "model": model, 
+                "prompt": prompt, 
+                "stream": True,
+                "options": options or {}
+            }
             async with client.stream("POST", f"{self.url}/api/generate", json=payload) as response:
                 async for line in response.aiter_lines():
                     if line:

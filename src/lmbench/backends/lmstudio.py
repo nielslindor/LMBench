@@ -14,8 +14,10 @@ class LMStudioBackend(BaseBackend):
             pass
         return []
 
-    async def stream_generate(self, model: str, prompt: str) -> AsyncGenerator[Dict, None]:
+    async def stream_generate(self, model: str, prompt: str, options: Optional[Dict] = None) -> AsyncGenerator[Dict, None]:
         async with httpx.AsyncClient(timeout=None) as client:
+            # Note: LM Studio handles offloading in its GUI, 
+            # so we ignore the 'num_gpu' option here for now.
             payload = {
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],

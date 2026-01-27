@@ -74,7 +74,8 @@ def doctor():
 def run(
     model: Optional[List[str]] = typer.Option(None, "--model", "-m", help="Specific model(s) to benchmark"),
     all_models: bool = typer.Option(False, "--all", "-a", help="Benchmark all discovered models"),
-    suite: bool = typer.Option(False, "--suite", "-s", help="Run full benchmark suite (Burst & Context)"),
+    suite: bool = typer.Option(False, "--suite", "-s", help="Run full benchmark suite (Performance + Quality)"),
+    matrix: bool = typer.Option(False, "--matrix", "-x", help="Run parameter matrix (e.g. varying GPU offload)"),
     prompt: str = typer.Option(None, "--prompt", "-p", help="Custom prompt for single test"),
 ):
     """
@@ -100,37 +101,34 @@ def run(
         return
 
     # 3. Selection
-    selected_backend = None
-    for b in backends:
-        if b.discovered_models:
-            selected_backend = b
-            break
-    
+    selected_backend = next((b for b in backends if b.discovered_models), None)
     if not selected_backend:
         console.print("\n[red]No models found on any active backend.[/red]")
         return
 
-    models_to_test = []
-    if all_models:
-        models_to_test = selected_backend.discovered_models
-    elif model:
-        models_to_test = model
-    else:
-        models_to_test = [selected_backend.discovered_models[0]]
+    models_to_test = model or ([selected_backend.discovered_models[0]] if not all_models else selected_backend.discovered_models)
 
-    # 4. Define Tests
+    # 4. Define Tests & Matrix
     tests = []
     if suite:
-        tests = [engine.BenchmarkSuite.get_burst_test(), engine.BenchmarkSuite.get_context_test()]
+        tests = [
+            engine.BenchmarkSuite.get_burst_test(),
+            engine.BenchmarkSuite.get_logic_test(),
+            engine.BenchmarkSuite.get_structured_test()
+        ]
     else:
-        # Single test
         p = prompt or "Write a 200-word essay about the future of local AI."
-        tests = [{"name": "Default", "prompt": p, "description": "Custom single-run test"}]
+        tests = [{"name": "Default", "type": "performance", "prompt": p}]
 
-    console.print(f"\n[yellow]Executing {len(tests)} test(s) on {len(models_to_test)} model(s)...[/yellow]")
+    matrix_opts = [None]
+    if matrix and selected_backend.name == "Ollama":
+        # Test 0, 50, 100 GPU offload
+        matrix_opts = [{"num_gpu": 0}, {"num_gpu": 50}, {"num_gpu": 99}]
+
+    console.print(f"\n[yellow]Executing {len(tests) * len(matrix_opts)} test(s) on {len(models_to_test)} model(s)...[/yellow]")
 
     # 5. Execute Benchmark
-    results = asyncio.run(engine.execute_suite(selected_backend, models_to_test, tests))
+    results = asyncio.run(engine.execute_suite(selected_backend, models_to_test, tests, matrix_opts))
     
     # 6. Report
     reporter = Reporter(system_info)

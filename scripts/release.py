@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "Full Lifecycle Release: Added Doctor (diagnostics), Recommend (hardware-aware suggestions), Pull (model acquisition), and Update (self-improvement) commands."
+    changelog = "Telemetry & Quality Release: Added real-time GPU power/temp tracking and a comprehensive Quality Suite (Logic, Structured Data)."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")
