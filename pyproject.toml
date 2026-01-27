@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lmbench"
-version = "0.2.0"
+version = "0.2.1"
 description = "The Gold Standard for Local LLM Benchmarking"
 readme = "README.md"
 authors = [
@@ -24,6 +24,7 @@ dependencies = [
     "psutil>=5.9.0",
     "platformdirs>=4.0.0",
     "py-cpuinfo>=9.0.0",
+    "nvidia-ml-py>=12.535.0",
 ]
 
 [project.scripts]
