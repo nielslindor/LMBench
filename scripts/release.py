@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "Hardware Awareness: Added GPU and VRAM detection for NVIDIA (RTX) and Apple Silicon."
+    changelog = "Modular Architecture & Reporting: Refactored backends, added multi-model support, and Markdown/JSON report generation."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")
