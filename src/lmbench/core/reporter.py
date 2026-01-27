@@ -14,32 +14,43 @@ class Reporter:
             os.makedirs(self.output_dir)
 
     def display_results(self, results: List[Dict]):
-        table = Table(title="Benchmark Results", box=None)
+        from .engine import ComparisonEngine
+        
+        # Calculate scores and sort
+        for r in results:
+            r["score"] = ComparisonEngine.calculate_score(r)
+        
+        sorted_results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+        table = Table(title="Gold Standard Rankings", box=None)
+        table.add_column("Rank", justify="center")
         table.add_column("Model", style="bold cyan")
         table.add_column("Test", style="yellow")
-        table.add_column("Settings", style="dim")
-        table.add_column("TTFT", style="green", justify="right")
         table.add_column("TPS", style="magenta", justify="right")
-        table.add_column("Power", justify="right")
+        table.add_column("Score", style="bold green", justify="right")
         table.add_column("Quality", justify="center")
 
-        for r in results:
-            q_val = "-"
-            if r["quality_pass"] is True: q_val = "[bold green]PASS[/bold green]"
-            elif r["quality_pass"] is False: q_val = "[bold red]FAIL[/bold red]"
+        for i, r in enumerate(sorted_results):
+            rank = "-"
+            if i == 0 and r["score"] > 0: rank = "🥇 [bold yellow]GOLD[/bold yellow]"
+            elif i == 1 and r["score"] > 0: rank = "🥈 [bold white]SILVER[/bold white]"
+            elif i == 2 and r["score"] > 0: rank = "🥉 [bold dark_orange]BRONZE[/bold dark_orange]"
             
-            settings = f"GPU:{r['options'].get('num_gpu', 'def')}" if r['options'] else "Default"
-            power_str = f"{r['peak_power_w']:.0f}W" if r['peak_power_w'] > 0 else "-"
+            q_val = "-"
+            if r["quality_pass"] is True: q_val = "✔"
+            elif r["quality_pass"] is False: q_val = "✘"
             
             table.add_row(
+                rank,
                 r["model"], 
                 r.get("test_name", "Default"),
-                settings,
-                f"{r['ttft_ms']:.0f}ms", 
                 f"{r['tps']:.1f}", 
-                power_str,
+                str(r["score"]),
                 q_val
             )
+        
+        self.console.print("\n")
+        self.console.print(table)
         
         self.console.print("\n")
         self.console.print(table)
