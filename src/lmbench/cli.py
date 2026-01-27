@@ -1,6 +1,7 @@
 import typer
 from rich.console import Console
 from .system import probe
+from .backends import discovery
 
 app = typer.Typer(
     name="lmbench",
@@ -18,6 +19,9 @@ def run():
     
     # 1. System Probe
     probe.print_system_info()
+    
+    # 2. Backend Discovery
+    discovery.print_backend_status()
     
     # TODO: Implement benchmark logic
     console.print("\n[dim]Benchmark engine initializing... (Coming Soon)[/dim]")
