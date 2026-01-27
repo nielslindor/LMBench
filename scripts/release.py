@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "Modular Architecture & Reporting: Refactored backends, added multi-model support, and Markdown/JSON report generation."
+    changelog = "Benchmark Suites: Added Burst Generation and Context Prefill test modes to measure TPS across different workload types."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

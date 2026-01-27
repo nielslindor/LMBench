@@ -16,6 +16,7 @@ class Reporter:
     def display_results(self, results: List[Dict]):
         table = Table(title="Benchmark Results", box=None)
         table.add_column("Model", style="bold cyan")
+        table.add_column("Test", style="yellow")
         table.add_column("TTFT (ms)", style="green", justify="right")
         table.add_column("TPS", style="magenta", justify="right")
         table.add_column("Tokens", style="dim", justify="right")
@@ -24,6 +25,7 @@ class Reporter:
         for r in results:
             table.add_row(
                 r["model"], 
+                r.get("test_name", "Default"),
                 f"{r['ttft_ms']:.2f}", 
                 f"{r['tps']:.2f}", 
                 str(r["total_tokens"]),
@@ -61,9 +63,9 @@ class Reporter:
                 f.write(f"- **GPU {i+1}:** {gpu['name']} ({gpu['vram_total_gb']} GB)\n")
             
             f.write("\n## Results\n\n")
-            f.write("| Model | TTFT (ms) | TPS | Tokens | Status |\n")
-            f.write("| :--- | ---: | ---: | ---: | :--- |\n")
+            f.write("| Model | Test | TTFT (ms) | TPS | Tokens | Status |\n")
+            f.write("| :--- | :--- | ---: | ---: | ---: | :--- |\n")
             for r in results:
-                f.write(f"| {r['model']} | {r['ttft_ms']:.2f} | {r['tps']:.2f} | {r['total_tokens']} | {r['status']} |\n")
+                f.write(f"| {r['model']} | {r.get('test_name', 'Default')} | {r['ttft_ms']:.2f} | {r['tps']:.2f} | {r['total_tokens']} | {r['status']} |\n")
 
         self.console.print(f"\n[green]Reports saved to:[/green]\n - {json_path}\n - {md_path}")

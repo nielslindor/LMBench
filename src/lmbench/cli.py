@@ -18,7 +18,8 @@ console = Console()
 def run(
     model: Optional[List[str]] = typer.Option(None, "--model", "-m", help="Specific model(s) to benchmark"),
     all_models: bool = typer.Option(False, "--all", "-a", help="Benchmark all discovered models"),
-    prompt: str = typer.Option("Write a 200-word essay about the future of local AI.", "--prompt", "-p", help="Prompt to use for benchmarking"),
+    suite: bool = typer.Option(False, "--suite", "-s", help="Run full benchmark suite (Burst & Context)"),
+    prompt: str = typer.Option(None, "--prompt", "-p", help="Custom prompt for single test"),
 ):
     """
     Run the standard benchmark suite.
@@ -48,18 +49,26 @@ def run(
     models_to_test = []
     if all_models:
         models_to_test = selected_backend.discovered_models
-        console.print(f"\n[yellow]Benchmarking ALL [bold]{len(models_to_test)}[/bold] models on {selected_backend.name}...[/yellow]")
     elif model:
         models_to_test = model
     else:
-        # Default to first model
         models_to_test = [selected_backend.discovered_models[0]]
-        console.print(f"\n[yellow]No model specified. Using first discovered model: [bold]{models_to_test[0]}[/bold][/yellow]")
 
-    # 4. Execute Benchmark
-    results = asyncio.run(engine.execute_suite(selected_backend, models_to_test, prompt))
+    # 4. Define Tests
+    tests = []
+    if suite:
+        tests = [engine.BenchmarkSuite.get_burst_test(), engine.BenchmarkSuite.get_context_test()]
+    else:
+        # Single test
+        p = prompt or "Write a 200-word essay about the future of local AI."
+        tests = [{"name": "Default", "prompt": p, "description": "Custom single-run test"}]
+
+    console.print(f"\n[yellow]Executing {len(tests)} test(s) on {len(models_to_test)} model(s)...[/yellow]")
+
+    # 5. Execute Benchmark
+    results = asyncio.run(engine.execute_suite(selected_backend, models_to_test, tests))
     
-    # 5. Report
+    # 6. Report
     reporter = Reporter(system_info)
     reporter.display_results(results)
     reporter.save_reports(results, selected_backend.name)

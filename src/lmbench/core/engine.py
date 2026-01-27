@@ -5,6 +5,25 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from ..backends.base import BaseBackend
 
+class BenchmarkSuite:
+    @staticmethod
+    def get_burst_test():
+        return {
+            "name": "Burst Generation",
+            "prompt": "Write a detailed 500-word story about a spaceship exploring a black hole.",
+            "description": "Measures sustained generation speed (TPS)."
+        }
+
+    @staticmethod
+    def get_context_test():
+        # A long-ish context to measure prefill
+        long_context = "Repeat the word 'AI' 500 times. " * 20 
+        return {
+            "name": "Context Prefill",
+            "prompt": long_context + "\n\nSummarize the purpose of the text above in one sentence.",
+            "description": "Measures how fast the model processes a large input (Prefill)."
+        }
+
 class BenchmarkEngine:
     def __init__(self, backend: BaseBackend):
         self.backend = backend
@@ -50,21 +69,42 @@ class BenchmarkEngine:
 
         return metrics
 
-async def execute_suite(backend: BaseBackend, models: List[str], prompt: str):
+async def execute_suite(backend: BaseBackend, models: List[str], tests: List[Dict]):
+
     engine = BenchmarkEngine(backend)
+
     results = []
+
     
+
     console = Console()
+
     console.print(f"\n[bold]Benchmarking {backend.name}[/bold] ([dim]{backend.url}[/dim])")
 
+
+
     for model in models:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            transient=True,
-        ) as progress:
-            progress.add_task(description=f"Testing {model}...", total=None)
-            res = await engine.run_benchmark(model, prompt)
-            results.append(res)
+
+        for test in tests:
+
+            with Progress(
+
+                SpinnerColumn(),
+
+                TextColumn("[progress.description]{task.description}"),
+
+                transient=True,
+
+            ) as progress:
+
+                progress.add_task(description=f"[{test['name']}] Testing {model}...", total=None)
+
+                res = await engine.run_benchmark(model, test["prompt"])
+
+                res["test_name"] = test["name"]
+
+                results.append(res)
+
     
+
     return results
