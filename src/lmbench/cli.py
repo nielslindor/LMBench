@@ -1,5 +1,6 @@
 import typer
 from rich.console import Console
+from .system import probe
 
 app = typer.Typer(
     name="lmbench",
@@ -14,8 +15,12 @@ def run():
     Run the standard benchmark suite.
     """
     console.print("[bold green]LMBench[/bold green] is starting...", style="bold blue")
+    
+    # 1. System Probe
+    probe.print_system_info()
+    
     # TODO: Implement benchmark logic
-    console.print("Functionality coming soon!", style="yellow")
+    console.print("\n[dim]Benchmark engine initializing... (Coming Soon)[/dim]")
 
 @app.command()
 def version():

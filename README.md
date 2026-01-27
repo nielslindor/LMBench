@@ -1,17 +1,16 @@
 # LMBench
 
-**The Gold Standard for Local LLM Benchmarking.**
+**The universal benchmark for local Large Language Models.**
 
-## Vision
+LMBench is a cross-platform tool designed to provide accurate, comparable, and actionable performance metrics for LLMs running on your own hardware. Whether you are running Ollama on a MacBook Air or LM Studio on a multi-GPU rig, LMBench gives you the hard numbers you need to optimize your workflow.
 
-LMBench is a universal, cross-platform tool designed to provide accurate, comparable, and actionable performance metrics for Large Language Models running locally.
+## Features
 
-## Features (Planned)
-
-*   **Universal Compatibility:** Works on Windows, macOS, and Linux.
-*   **Auto-Detection:** Automatically finds your GPU/CPU hardware and running LLM backends (Ollama, LM Studio).
-*   **Comprehensive Metrics:** Measures TTFT (Time To First Token), TPS (Tokens Per Second), and Memory Pressure.
-*   **Vibes:** Beautiful, easy-to-read CLI output.
+*   **Universal Compatibility:** Runs seamlessly on Windows, macOS, and Linux.
+*   **Hardware Aware:** Automatically detects and profiles your CPU, GPU, and RAM to provide context for your results.
+*   **Agnostic Backend:** Supports **Ollama** and **LM Studio** out of the box.
+*   **Actionable Metrics:** Measures what matters—Time To First Token (TTFT), Tokens Per Second (TPS), and Memory Pressure.
+*   **Vibes:** A clean, modern CLI experience designed for clarity.
 
 ## Installation
 
@@ -24,3 +23,7 @@ pip install lmbench
 ```bash
 lmbench run
 ```
+
+## Contributing
+
+We believe in open standards. If you want to add support for a new backend or metric, please open a PR.
