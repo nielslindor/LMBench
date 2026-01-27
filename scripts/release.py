@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "Benchmark Suites: Added Burst Generation and Context Prefill test modes to measure TPS across different workload types."
+    changelog = "LMBench Doctor: Added diagnostic command to detect VRAM contention, RAM pressure, and high CPU load before benchmarking."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

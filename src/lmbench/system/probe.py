@@ -30,6 +30,8 @@ def get_gpu_info():
                 gpus.append({
                     "name": name if isinstance(name, str) else name.decode('utf-8'),
                     "vram_total_gb": round(mem.total / (1024**3), 2),
+                    "vram_used_gb": round(mem.used / (1024**3), 2),
+                    "vram_free_gb": round(mem.free / (1024**3), 2),
                     "type": "NVIDIA"
                 })
             pynvml.nvmlShutdown()

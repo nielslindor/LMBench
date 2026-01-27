@@ -2,7 +2,7 @@ import typer
 import asyncio
 from typing import List, Optional
 from rich.console import Console
-from .system import probe
+from .system import probe, health
 from .backends import discovery
 from .core import engine
 from .core.reporter import Reporter
@@ -13,6 +13,14 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+
+@app.command()
+def doctor():
+    """
+    Diagnose the system environment for potential performance issues.
+    """
+    doc = health.SystemDoctor()
+    doc.run_check()
 
 @app.command()
 def run(
@@ -26,6 +34,14 @@ def run(
     """
     console.print("[bold green]LMBench[/bold green] is starting...", style="bold blue")
     
+    # 0. Health Check
+    doc = health.SystemDoctor()
+    issues = doc.diagnose()
+    high_priority = [i for i in issues if i["severity"] == "High"]
+    if high_priority:
+        console.print(f"\n[bold red]⚠ WARNING: {len(high_priority)} high-priority health issues detected![/bold red]")
+        console.print("[dim]Run 'lmbench doctor' for details. Results may be inaccurate.[/dim]\n")
+
     # 1. System Probe
     system_info = probe.print_system_info()
     
