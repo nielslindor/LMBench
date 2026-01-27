@@ -21,11 +21,13 @@ class BackendDiscovery:
                 if name == "Ollama":
                     response = await client.get(f"{url}/api/tags")
                     if response.status_code == 200:
-                        return {"name": name, "url": url, "status": "Online", "models": len(response.json().get("models", []))}
+                        models = [m["name"] for m in response.json().get("models", [])]
+                        return {"name": name, "url": url, "status": "Online", "models": models}
                 elif name == "LM Studio":
                     response = await client.get(f"{url}/v1/models")
                     if response.status_code == 200:
-                        return {"name": name, "url": url, "status": "Online", "models": len(response.json().get("data", []))}
+                        models = [m["id"] for m in response.json().get("data", [])]
+                        return {"name": name, "url": url, "status": "Online", "models": models}
         except Exception:
             pass
         return None
@@ -60,7 +62,7 @@ def print_backend_status():
     table.add_column("URL", style="dim")
 
     for b in backends:
-        table.add_row(b["name"], b["status"], str(b["models"]), b["url"])
+        table.add_row(b["name"], b["status"], str(len(b["models"])), b["url"])
     
     console.print(table)
     return backends
