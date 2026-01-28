@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lmbench"
-version = "3.0.0"
+version = "3.1.0"
 description = "Universal Benchmark for Local Large Language Models"
 readme = "README.md"
 authors = [
@@ -33,3 +33,6 @@ lmbench = "lmbench.cli:app"
 [project.urls]
 "Homepage" = "https://github.com/yourusername/lmbench"
 "Bug Tracker" = "https://github.com/yourusername/lmbench/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,6 +1,6 @@
 #!/bin/bash
-# LMBench "Gold Standard" Installer (v3.0.0)
-# Optimized for high-fidelity terminal feedback and reliability
+# LMBench "Gold Standard" Installer (v3.1.0)
+# Optimized for high-fidelity terminal feedback and scientific reliability
 
 # --- Configuration ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -24,7 +24,7 @@ NC='\033[0m'
 
 # --- State ---
 CURRENT_STEP=0
-TOTAL_STEPS=5
+TOTAL_STEPS=6
 LAST_LOG=""
 
 # --- UI Helpers ---
@@ -38,8 +38,8 @@ spinner() {
         local filled=$(( percent / 4 ))
         local empty=$(( 25 - filled ))
         local bar=""
-        for ((j=0; j<filled; j++)); do bar+='█'; done
-        for ((j=0; j<empty; j++)); do bar+='░'; done
+        for ((j=0; j<filled; j++)); do bar+="█"; done
+        for ((j=0; j<empty; j++)); do bar+="░"; done
         if [ -f /tmp/lmbench_install.log ]; then
             LAST_LOG=$(tail -n 1 /tmp/lmbench_install.log | cut -c1-50)
         fi
@@ -53,18 +53,14 @@ run_task() {
     local task_name=$1
     local cmd=$2
     CURRENT_STEP=$((CURRENT_STEP + 1))
-    
-    # Run command and capture exit code
     eval "$cmd" > /tmp/lmbench_install.log 2>&1 & 
     local pid=$!
     spinner $pid "$task_name"
     wait $pid
-    local exit_code=$?
-    
-    if [ $exit_code -ne 0 ]; then
+    if [ $? -ne 0 ]; then
         echo -e "\n\n${RED}❌ Error during: $task_name${NC}"
-        echo -e "${DIM}--- Last 10 lines of log ---${NC}"
-        tail -n 10 /tmp/lmbench_install.log
+        echo -e "${DIM}--- Full log available at /tmp/lmbench_install.log ---"
+        tail -n 20 /tmp/lmbench_install.log
         exit 1
     fi
 }
@@ -84,24 +80,24 @@ rm -rf "$INSTALL_DIR"
 rm -f /tmp/lmbench_install.log
 
 # 3. Tasks
+run_task "Time Sync & Prep" "sudo date -s \"\
+$(curl -s --head http://google.com | grep ^Date: | sed 's/Date: //g')\" || true"
 run_task "System Environment" "sudo apt-get update -y && sudo apt-get install -y python3 python3-venv python3-pip build-essential"
 run_task "Python Sandbox" "mkdir -p $INSTALL_DIR && chown $REAL_USER:$REAL_USER $INSTALL_DIR && sudo -u $REAL_USER python3 -m venv $VENV_PATH"
-run_task "LMBench Core" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install --upgrade pip && sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install '$SCRIPT_DIR'"
-run_task "Command Shim" "mkdir -p $BIN_DIR && echo '#!/bin/bash' > $BIN_DIR/$BIN_NAME && echo 'export PYTHONPATH="$SCRIPT_DIR/src:\$PYTHONPATH"' >> $BIN_DIR/$BIN_NAME && echo '$VENV_PATH/bin/python3 -m lmbench "\$@"' >> $BIN_DIR/$BIN_NAME && chmod +x $BIN_DIR/$BIN_NAME && chown $REAL_USER:$REAL_USER $BIN_DIR/$BIN_NAME"
-run_task "System Integration" "if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then sudo ln -sf $BIN_DIR/$BIN_NAME /usr/local/bin/$BIN_NAME; fi && if ! grep -q '$BIN_DIR' '$REAL_HOME/.bashrc'; then echo 'export PATH="\$PATH:$BIN_DIR"' >> '$REAL_HOME/.bashrc'; fi"
+run_task "LMBench Core" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install --upgrade pip && sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install -e '$SCRIPT_DIR'"
+run_task "Verification" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -c 'import lmbench; print(\"Verified\")'"
+run_task "Global Integration" "mkdir -p $BIN_DIR && echo '#!/bin/bash' > $BIN_DIR/$BIN_NAME && echo '$VENV_PATH/bin/python3 -m lmbench \"\$@\"' >> $BIN_DIR/$BIN_NAME && chmod +x $BIN_DIR/$BIN_NAME && chown $REAL_USER:$REAL_USER $BIN_DIR/$BIN_NAME && if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then sudo ln -sf $BIN_DIR/$BIN_NAME /usr/local/bin/$BIN_NAME; fi && if ! grep -q '$BIN_DIR' '$REAL_HOME/.bashrc'; then echo 'export PATH=\"\$PATH:$BIN_DIR\"' >> '$REAL_HOME/.bashrc'; fi"
 
 # Finalize
 printf "\r${GREEN}✔${NC} Installation Complete: [${GREEN}█████████████████████████${NC}] 100%% (Ready) \033[K\n"
-echo -e "${GREEN}LMBench v3.0.0 successfully deployed!${NC}"
-echo -e "${DIM}Added $BIN_DIR to PATH${NC}\n"
+echo -e "${GREEN}LMBench successfully deployed!${NC}"
+echo -e "${DIM}Command linked to: $BIN_DIR/$BIN_NAME${NC}\n"
 
-# Update PATH for this session
 export PATH="$PATH:$BIN_DIR"
 
-# 4. Interactive Execution Flow
+# Interactive Flow
 echo -e "Running LMBench in suite mode."
 echo -ne "Press any key to choose flags or cancel (5s)... "
-
 KEY_PRESSED=""
 for i in {5..1}; do
     echo -ne "\rPress any key to choose flags or cancel (${i}s)... "
@@ -115,17 +111,15 @@ if [ -n "$KEY_PRESSED" ]; then
     echo -e " 3. Run intensive deep suite"
     echo -e " 4. Run system doctor"
     echo -e " 5. Get model recommendations"
-    
     echo -ne "\nSelect option [1-5]: "
     read -n 1 choice
     echo -e "\n"
-
     case $choice in
-        1) echo "Exiting..."; exit 0 ;;
-        3) lmbench run --deep --rounds 2 ;;
-        4) lmbench doctor ;;
-        5) lmbench recommend ;;
-        *) lmbench run --suite ;;
+        1) echo "Exiting..."; exit 0 ;; 
+        3) lmbench run --deep --rounds 2 ;; 
+        4) lmbench doctor ;; 
+        5) lmbench recommend ;; 
+        *) lmbench run --suite ;; 
     esac
 else
     echo -e "\n\n${BLUE}➜ Executing suite...${NC}"
