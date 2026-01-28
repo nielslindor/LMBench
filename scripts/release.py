@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v1.7.0 - AI-Powered Intelligence: Introduced the Transient AI Recommender, using a small local model to reason about hardware specs and suggest the optimal models for your system."
+    changelog = "v1.8.0 - The HUD Update: Completely redesigned the live benchmark screen with a real-time Hardware HUD, featuring VRAM, Power, Temperature, and CPU/RAM telemetry."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

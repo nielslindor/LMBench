@@ -16,6 +16,10 @@ class Telemetry:
     def __init__(self):
         self.peak_power = 0.0
         self.max_temp = 0
+        self.current_vram_gb = 0.0
+        self.total_vram_gb = 0.0
+        self.cpu_pct = 0.0
+        self.ram_pct = 0.0
         self.active = False
 
     def start(self):
@@ -27,6 +31,9 @@ class Telemetry:
         self.active = False
 
     def poll(self):
+        self.cpu_pct = psutil.cpu_percent()
+        self.ram_pct = psutil.virtual_memory().percent
+        
         if not HAS_PYNVML:
             return
         
@@ -34,15 +41,20 @@ class Telemetry:
             pynvml.nvmlInit()
             handle = pynvml.nvmlDeviceGetHandleByIndex(0)
             
-            # Power (mW to W)
+            # Power
             power = pynvml.nvmlDeviceGetPowerUsage(handle) / 1000.0
             if power > self.peak_power:
                 self.peak_power = power
                 
-            # Temp (C)
+            # Temp
             temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
             if temp > self.max_temp:
                 self.max_temp = temp
+            
+            # VRAM
+            mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
+            self.current_vram_gb = mem.used / (1024**3)
+            self.total_vram_gb = mem.total / (1024**3)
                 
             pynvml.nvmlShutdown()
         except Exception:

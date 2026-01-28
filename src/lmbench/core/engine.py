@@ -59,26 +59,49 @@ class LiveDashboard:
         self.tps = 0.0
         self.ttft = 0.0
         self.power = 0.0
+        self.temp = 0
+        self.vram_used = 0.0
+        self.vram_total = 0.0
+        self.cpu_pct = 0.0
+        self.ram_pct = 0.0
         self.tokens = 0
         self.text_buffer = ""
 
     def generate_renderable(self):
-        stats = Table.grid(expand=True)
-        stats.add_column(style="cyan")
-        stats.add_column(justify="right", style="magenta")
-        stats.add_row("Model:", self.model)
-        stats.add_row("Test:", self.test_name)
-        stats.add_row("TTFT:", f"{self.ttft:.0f}ms")
-        stats.add_row("TPS:", f"[bold]{self.tps:.1f}[/bold]")
-        stats.add_row("Power:", f"{self.power:.0f}W")
-        stats.add_row("Tokens:", str(self.tokens))
+        # 1. Performance Panel
+        perf_table = Table.grid(expand=True)
+        perf_table.add_column(style="bold cyan")
+        perf_table.add_column(justify="right", style="bold magenta")
+        perf_table.add_row("TPS:", f"{self.tps:.1f}")
+        perf_table.add_row("TTFT:", f"{self.ttft:.0f}ms")
+        perf_table.add_row("Tokens:", str(self.tokens))
 
-        content = Layout()
-        content.split_row(
-            Layout(Panel(stats, title="Metrics", border_style="blue"), size=30),
-            Layout(Panel(Text(self.text_buffer[-500:], style="dim"), title="Live Output", border_style="green"))
+        # 2. Hardware Panel
+        hw_table = Table.grid(expand=True)
+        hw_table.add_column(style="cyan")
+        hw_table.add_column(justify="right", style="green")
+        
+        vram_str = f"{self.vram_used:.1f}/{self.vram_total:.0f}GB" if self.vram_total > 0 else "N/A"
+        hw_table.add_row("VRAM:", vram_str)
+        hw_table.add_row("Power:", f"{self.power:.0f}W")
+        hw_table.add_row("Temp:", f"{self.temp}°C")
+        hw_table.add_row("CPU:", f"{self.cpu_pct:.0f}%")
+        hw_table.add_row("RAM:", f"{self.ram_pct:.0f}%")
+
+        # Layout
+        layout = Layout()
+        layout.split_row(
+            Layout(name="sidebar", size=32),
+            Layout(Panel(Text(self.text_buffer[-800:], style="dim italic"), title="Live Stream", border_style="green"))
         )
-        return content
+        
+        layout["sidebar"].split_column(
+            Layout(Panel(perf_table, title="[bold]Performance[/bold]", border_style="magenta")),
+            Layout(Panel(hw_table, title="[bold]Hardware HUD[/bold]", border_style="blue")),
+            Layout(Panel(Text(f"{self.model}\n{self.test_name}", justify="center", style="dim"), title="Context", border_style="white"))
+        )
+        
+        return layout
 
 class BenchmarkEngine:
     def __init__(self, backend: BaseBackend):
@@ -148,7 +171,15 @@ class BenchmarkEngine:
                         now = time.perf_counter()
                         if first_token_time and now > first_token_time:
                             dash.tps = (tokens_received - 1) / (now - first_token_time)
+                            
+                            # Feed detailed telemetry
                             dash.power = telemetry.peak_power
+                            dash.temp = telemetry.max_temp
+                            dash.vram_used = telemetry.current_vram_gb
+                            dash.vram_total = telemetry.total_vram_gb
+                            dash.cpu_pct = telemetry.cpu_pct
+                            dash.ram_pct = telemetry.ram_pct
+                            
                             live.update(dash.generate_renderable())
                     
                     if self.backend.is_compatible(chunk):
