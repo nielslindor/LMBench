@@ -1,6 +1,6 @@
 import httpx
 import json
-from typing import List, AsyncGenerator, Dict
+from typing import List, AsyncGenerator, Dict, Optional
 from .base import BaseBackend
 
 class OllamaBackend(BaseBackend):

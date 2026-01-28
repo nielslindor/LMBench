@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v2.5.2 - Linux Compatibility: Fixed shim path to correctly use python3 inside the virtual environment on Linux systems."
+    changelog = "v2.5.3 - Code Stability: Fixed missing 'Optional' imports in backend modules that caused runtime NameErrors on clean installs."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")
