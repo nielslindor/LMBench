@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v2.9.0 - Interactive Launch Engine: Implemented a 5-second countdown and a selectable flag menu post-installation, plus improved path integration and reliable absolute-path dependency installation."
+    changelog = "v3.0.0 - Benchmark Tool Standard: Renamed installer header, fixed critical module-not-found errors with explicit PYTHONPATH shims, and added robust error logging to the installation process."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

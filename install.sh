@@ -1,6 +1,6 @@
 #!/bin/bash
-# LMBench "Gold Standard" Installer (v2.9.0)
-# Optimized for high-fidelity terminal feedback and interactive flow
+# LMBench "Gold Standard" Installer (v3.0.0)
+# Optimized for high-fidelity terminal feedback and reliability
 
 # --- Configuration ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -53,13 +53,24 @@ run_task() {
     local task_name=$1
     local cmd=$2
     CURRENT_STEP=$((CURRENT_STEP + 1))
-    eval "$cmd" > /tmp/lmbench_install.log 2>&1 &
-    spinner $! "$task_name"
-    wait $!
+    
+    # Run command and capture exit code
+    eval "$cmd" > /tmp/lmbench_install.log 2>&1 & 
+    local pid=$!
+    spinner $pid "$task_name"
+    wait $pid
+    local exit_code=$?
+    
+    if [ $exit_code -ne 0 ]; then
+        echo -e "\n\n${RED}❌ Error during: $task_name${NC}"
+        echo -e "${DIM}--- Last 10 lines of log ---${NC}"
+        tail -n 10 /tmp/lmbench_install.log
+        exit 1
+    fi
 }
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}   LMBench - Professional Deployment${NC}"
+echo -e "${BLUE}   LMBench - Benchmark Tool${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # 1. Early Sudo
@@ -75,13 +86,13 @@ rm -f /tmp/lmbench_install.log
 # 3. Tasks
 run_task "System Environment" "sudo apt-get update -y && sudo apt-get install -y python3 python3-venv python3-pip build-essential"
 run_task "Python Sandbox" "mkdir -p $INSTALL_DIR && chown $REAL_USER:$REAL_USER $INSTALL_DIR && sudo -u $REAL_USER python3 -m venv $VENV_PATH"
-run_task "LMBench Core" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install --upgrade pip && sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install $SCRIPT_DIR"
-run_task "Command Shim" "mkdir -p $BIN_DIR && echo '#!/bin/bash' > $BIN_DIR/$BIN_NAME && echo '$VENV_PATH/bin/python3 -m lmbench \"\$@\"' >> $BIN_DIR/$BIN_NAME && chmod +x $BIN_DIR/$BIN_NAME && chown $REAL_USER:$REAL_USER $BIN_DIR/$BIN_NAME"
-run_task "System Integration" "if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then sudo ln -sf $BIN_DIR/$BIN_NAME /usr/local/bin/$BIN_NAME; fi && if ! grep -q '$BIN_DIR' '$REAL_HOME/.bashrc'; then echo 'export PATH=\"$$PATH:$BIN_DIR\"' >> '$REAL_HOME/.bashrc'; fi"
+run_task "LMBench Core" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install --upgrade pip && sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install '$SCRIPT_DIR'"
+run_task "Command Shim" "mkdir -p $BIN_DIR && echo '#!/bin/bash' > $BIN_DIR/$BIN_NAME && echo 'export PYTHONPATH="$SCRIPT_DIR/src:\$PYTHONPATH"' >> $BIN_DIR/$BIN_NAME && echo '$VENV_PATH/bin/python3 -m lmbench "\$@"' >> $BIN_DIR/$BIN_NAME && chmod +x $BIN_DIR/$BIN_NAME && chown $REAL_USER:$REAL_USER $BIN_DIR/$BIN_NAME"
+run_task "System Integration" "if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then sudo ln -sf $BIN_DIR/$BIN_NAME /usr/local/bin/$BIN_NAME; fi && if ! grep -q '$BIN_DIR' '$REAL_HOME/.bashrc'; then echo 'export PATH="\$PATH:$BIN_DIR"' >> '$REAL_HOME/.bashrc'; fi"
 
 # Finalize
 printf "\r${GREEN}✔${NC} Installation Complete: [${GREEN}█████████████████████████${NC}] 100%% (Ready) \033[K\n"
-echo -e "${GREEN}LMBench v2.9.0 successfully deployed!${NC}"
+echo -e "${GREEN}LMBench v3.0.0 successfully deployed!${NC}"
 echo -e "${DIM}Added $BIN_DIR to PATH${NC}\n"
 
 # Update PATH for this session
