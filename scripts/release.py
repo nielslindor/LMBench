@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v1.5.0 - Professional Standard: Fully refined user journey with interactive model recommendations, auto-launching backends, and scientific-grade statistical averaging."
+    changelog = "v1.6.0 - Batch Execution Engine: Added multi-model benchmarking support via the --top flag, featuring automated model fallback and side-by-side performance rankings."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

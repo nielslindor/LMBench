@@ -36,35 +36,36 @@ def init():
     mgr.save(cfg)
     console.print(f"\n[green]✔ Configuration saved to {mgr.config_path}[/green]")
 
+async def _pull_logic(model_name: str):
+    backends = discovery.run_discovery()
+    ollama = next((b for b in backends if b.name == "Ollama"), None)
+    
+    if not ollama:
+        console.print(f"[red]Ollama backend not found. Skipping pull for {model_name}.[/red]")
+        return False
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        DownloadColumn(),
+        transient=True
+    ) as progress:
+        task = progress.add_task(description=f"Pulling {model_name}...", total=100)
+        async for status in ollama.pull_model(model_name):
+            if "total" in status and "completed" in status:
+                progress.update(task, completed=(status["completed"] / status["total"]) * 100)
+            elif "status" in status:
+                progress.update(task, description=f"{status['status']}: {model_name}")
+    return True
+
 @app.command()
 def pull(model_name: str):
     """
     Pull a model to a local backend (currently supports Ollama).
     """
-    backends = discovery.run_discovery()
-    ollama = next((b for b, running in backends if b.name == "Ollama"), None)
-    
-    if not ollama:
-        console.print("[red]Ollama backend not found or not running.[/red]")
-        return
-
-    async def _pull():
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            DownloadColumn(),
-            transient=True
-        ) as progress:
-            task = progress.add_task(description=f"Pulling {model_name}...", total=100)
-            async for status in ollama.pull_model(model_name):
-                if "total" in status and "completed" in status:
-                    progress.update(task, completed=(status["completed"] / status["total"]) * 100)
-                elif "status" in status:
-                    progress.update(task, description=f"{status['status']}: {model_name}")
-
-    asyncio.run(_pull())
-    console.print(f"[bold green]✔ Successfully pulled {model_name}![/bold green]")
+    if asyncio.run(_pull_logic(model_name)):
+        console.print(f"[bold green]✔ Successfully pulled {model_name}! [/bold green]")
 
 @app.command()
 def recommend(
@@ -82,7 +83,7 @@ def recommend(
         console.print("\n[bold blue]Interactive Pull[/bold blue]")
         for m in selected:
             if typer.confirm(f"Do you want to pull {m['id']}?"):
-                pull(m['id'])
+                asyncio.run(_pull_logic(m['id']))
 
 @app.command()
 def update():
@@ -103,6 +104,7 @@ def doctor():
 def run(
     model: Optional[List[str]] = typer.Option(None, "--model", "-m", help="Specific model(s) to benchmark"),
     all_models: bool = typer.Option(False, "--all", "-a", help="Benchmark all discovered models"),
+    top: Optional[int] = typer.Option(None, "--top", "-t", help="Automatically pull and benchmark the Top N recommended models"),
     suite: bool = typer.Option(False, "--suite", "-s", help="Run standard benchmark suite"),
     deep: Optional[bool] = typer.Option(None, "--deep", "-d", help="Run deep, intensive benchmark suite"),
     matrix: Optional[bool] = typer.Option(None, "--matrix", "-x", help="Run parameter matrix"),
@@ -163,21 +165,55 @@ def run(
 
     # 3. Selection
     selected_backend = online_backends[0]
-    
-    if not model and not all_models:
+    models_to_test = []
+
+    if top:
         rec_eng = recommender.Recommender(system_info)
-        top_recs = rec_eng.select_top_10()
-        available_ids = set(selected_backend.discovered_models)
-        ready_to_test = [m for m in top_recs if m["id"] in available_ids]
+        recs = rec_eng.select_top_10()
         
-        if ready_to_test:
-            models_to_test = [ready_to_test[0]["id"]]
-            console.print(f"\n[yellow]Selected top recommended & installed model: [bold]{models_to_test[0]}[/bold][/yellow]")
+        available_ids = selected_backend.discovered_models
+        console.print(f"\n[bold blue]Batch Mode: Target {top} Models[/bold blue]")
+        
+        # Strategy:
+        # 1. Start with installed models that are in the recommendation list
+        rec_ids = [m["id"] for m in recs]
+        ready = [m_id for m_id in available_ids if m_id in rec_ids]
+        
+        # 2. Add models that need pulling (if supported)
+        to_pull = [m_id for m_id in rec_ids if m_id not in available_ids]
+        
+        models_to_test = ready
+        if selected_backend.name == "Ollama":
+            for m_id in to_pull:
+                if len(models_to_test) >= top: break
+                console.print(f"[yellow]Pulling missing model: {m_id}...[/yellow]")
+                if asyncio.run(_pull_logic(m_id)):
+                    models_to_test.append(m_id)
+        
+        # 3. If we still don't have enough, fill with other installed models
+        if len(models_to_test) < top:
+            other_installed = [m_id for m_id in available_ids if m_id not in models_to_test]
+            models_to_test.extend(other_installed[:top - len(models_to_test)])
+            
+        models_to_test = models_to_test[:top]
+    elif all_models:
+        models_to_test = selected_backend.discovered_models
+    elif model:
+        models_to_test = model
+    else:
+        # Smart Default
+        rec_eng = recommender.Recommender(system_info)
+        recs = rec_eng.select_top_10()
+        available_ids = set(selected_backend.discovered_models)
+        ready = [m["id"] for m in recs if m["id"] in available_ids]
+        if ready:
+            models_to_test = [ready[0]]
         else:
             models_to_test = [selected_backend.discovered_models[0]]
-            console.print(f"\n[yellow]No top recommendations installed. Using: [bold]{models_to_test[0]}[/bold][/yellow]")
-    else:
-        models_to_test = model or selected_backend.discovered_models
+
+    if not models_to_test:
+        console.print("[red]No valid models selected for testing.[/red]")
+        return
 
     # 4. Define Tests & Matrix
     tests = []
