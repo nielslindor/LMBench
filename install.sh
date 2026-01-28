@@ -114,14 +114,15 @@ if [ -n "$KEY_PRESSED" ]; then
     echo -ne "\nSelect option [1-5]: "
     read -n 1 choice
     echo -e "\n"
-    case $choice in
-        1) echo "Exiting..."; exit 0 ;; 
-        3) lmbench run --deep --rounds 2 ;; 
-        4) lmbench doctor ;; 
-        5) lmbench recommend ;; 
-        *) lmbench run --suite ;; 
-    esac
-else
-    echo -e "\n\n${BLUE}➜ Executing suite...${NC}"
-    lmbench run --suite
-fi
+            case $choice in
+                1) echo "Exiting..."; exit 0 ;;
+                3) lmbench run --deep --rounds 2 --intent G --yes ;;
+                4) lmbench doctor ;;
+                5) lmbench recommend ;;
+                *) lmbench run --suite --intent G --yes ;;
+            esac
+        else
+            echo -e "\n\n${BLUE}➜ Executing suite...${NC}"
+            lmbench run --suite --intent G --yes
+        fi
+        

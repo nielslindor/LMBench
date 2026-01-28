@@ -92,7 +92,8 @@ def run(
     rounds: Optional[int] = typer.Option(None, "--rounds", "-r"),
     prompt: Optional[str] = typer.Option(None, "--prompt", "-p"),
     auto_start: bool = typer.Option(True, "--start"),
-    intent: Optional[str] = typer.Option(None, "--intent", "-i"),
+    intent: Optional[str] = typer.Option(None, "--intent", "-i", help="Primary goal: [C]ode, [A]gent, [R]oleplay, [G]eneral"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Automatically accept all prompts (like installing Ollama)"),
 ):
     mgr = config.ConfigManager(); cfg = mgr.load()
     user_intent = intent
@@ -114,10 +115,13 @@ def run(
         console.print("[white]To benchmark, you need a backend running. We recommend installing Ollama:[/white]")
         console.print("[bold cyan]  curl -fsSL https://ollama.com/install.sh | sh[/bold cyan]\n")
         
-        if typer.confirm("Would you like me to try installing Ollama for you?"):
+        should_install = yes
+        if not should_install:
+            should_install = typer.confirm("Would you like me to try installing Ollama for you?")
+            
+        if should_install:
             import subprocess
             subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True)
-            # Re-discover
             found_backends = asyncio.run(disco.discover())
             if not found_backends: return
         else:
