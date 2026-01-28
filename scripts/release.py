@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v2.0.0 - The Control Center: Introduced robust model ejection with VRAM verification, a high-fidelity HUD surfacing model reasoning and capabilities, and a persistent session history tracking scores across runs."
+    changelog = "v2.1.0 - The Clean Sweep: Added final model ejection after suite completion to ensure total resource deallocation and return the system to a clean state."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")
