@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lmbench"
-version = "3.4.0"
+version = "3.5.0"
 description = "Universal Benchmark for Local Large Language Models"
 readme = "README.md"
 authors = [

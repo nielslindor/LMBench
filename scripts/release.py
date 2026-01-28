@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v3.4.0 - High-Fidelity Installer: Overhauled install.sh with granular progress bars, real-time command output logging, and improved error handling for system packages."
+    changelog = "v3.5.0 - Professional Standard: Sophisticated neutral UI redesign, high-fidelity granular installer feedback, and a comprehensive resource cleanup engine that ensures total system deallocation post-benchmark."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

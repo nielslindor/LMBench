@@ -23,6 +23,15 @@ class BackendLauncher:
             if os.path.exists(path):
                 subprocess.Popen([path], start_new_session=True)
                 return True
+        elif platform.system() == "Linux":
+            try:
+                # Try systemctl first
+                subprocess.run("sudo systemctl start ollama", shell=True, check=True, capture_output=True)
+                return True
+            except:
+                # Fallback to background process
+                subprocess.Popen(["ollama", "serve"], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return True
         elif platform.system() == "Darwin":
             subprocess.Popen(["open", "-a", "Ollama"], start_new_session=True)
             return True

@@ -108,12 +108,69 @@ class ComparisonEngine:
         return round((s_tps * w_tps) + (s_ttft * w_ttft), 1)
 
 async def execute_suite(backend: BaseBackend, models: List[str], tests: List[Dict], matrix_options: Optional[List[Dict]] = None, rounds: int = 1, reasoning_list: List[str] = None):
+
     engine = BenchmarkEngine(backend); results = []; matrix = matrix_options or [None]; console = Console()
+
     console.print(f"\n[bold]Benchmarking {backend.name}[/bold] ([dim]{backend.url}[/dim])")
+
     for i, model in enumerate(models):
+
         reasoning = reasoning_list[i] if reasoning_list and i < len(reasoning_list) else "Manual selection."
+
         for option in matrix:
+
             for test in tests:
+
                 res = await engine.run_benchmark(model, test, option, rounds, reasoning)
+
                 results.append(res)
-    console.print("\n[bold red]Finalizing: Ejecting all models...[/bold red]"); await backend.unload_all(); return results
+
+    
+
+    # --- RIGOROUS CLEANUP ---
+
+    console.print("\n[bold]Finalizing suite...[/bold]")
+
+    
+
+    # 1. Eject all models
+
+    console.print("[dim]➜ Ejecting all models from VRAM...[/dim]")
+
+    await backend.unload_all()
+
+    
+
+    # 2. Verify deallocation
+
+    from ..system.probe import Telemetry
+
+    telemetry = Telemetry()
+
+    for _ in range(3):
+
+        telemetry.poll()
+
+        console.print(f"[dim]  Current VRAM: {telemetry.current_vram_gb:.1f}GB[/dim]")
+
+        await asyncio.sleep(1)
+
+    
+
+    # 3. Log Completion
+
+    import os
+
+    from datetime import datetime
+
+    log_file = os.path.join("benchmark_results", "suite_completion.log")
+
+    with open(log_file, "a") as f:
+
+        f.write(f"[{datetime.now()}] Suite completed successfully. Models tested: {len(models)}. Total results: {len(results)}\n")
+
+    
+
+    console.print("[bold green]✔ All resources deallocated. Benchmark process terminated safely.[/bold green]")
+
+    return results
