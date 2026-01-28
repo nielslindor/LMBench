@@ -112,19 +112,15 @@ def run(
     
     if not found_backends:
         console.print("\n[bold red]No local LLM backends found (Ollama or LM Studio).[/bold red]")
-        console.print("[white]To benchmark, you need a backend running. We recommend installing Ollama:[/white]")
-        console.print("[bold cyan]  curl -fsSL https://ollama.com/install.sh | sh[/bold cyan]\n")
+        console.print("[white]➜ Automatically installing Ollama to resolve dependency...[/white]")
         
-        should_install = yes
-        if not should_install:
-            should_install = typer.confirm("Would you like me to try installing Ollama for you?")
-            
-        if should_install:
-            import subprocess
-            subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True)
-            found_backends = asyncio.run(disco.discover())
-            if not found_backends: return
-        else:
+        import subprocess
+        subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True)
+        
+        # Re-discover
+        found_backends = asyncio.run(disco.discover())
+        if not found_backends:
+            console.print("[red]Failed to initialize backend after installation.[/red]")
             return
 
     online_backends = [b for b, running in found_backends if running]

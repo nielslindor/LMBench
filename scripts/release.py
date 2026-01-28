@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v3.2.0 - Hands-Free Standard: Fully automated backend setup on clean servers, featuring non-interactive Ollama installation and refined session management for seamless first-run experiences."
+    changelog = "v3.3.0 - The Automated Lifecycle: Made automatic backend installation the default (no flags needed) and introduced the ESXi Management module for automated VM snapshot reversion."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")
