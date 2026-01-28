@@ -86,7 +86,7 @@ update_progress
 mkdir -p "$BIN_DIR"
 cat <<EOF > "$BIN_DIR/$BIN_NAME"
 #!/bin/bash
-"$VENV_PATH/bin/python" -m lmbench "\$@"
+"$VENV_PATH/bin/python3" -m lmbench "\$@"
 EOF
 chmod +x "$BIN_DIR/$BIN_NAME"
 chown "$REAL_USER:$REAL_USER" "$BIN_DIR/$BIN_NAME"
