@@ -1,5 +1,5 @@
 #!/bin/bash
-# LMBench High-Fidelity Installer (v2.5.1)
+# LMBench "Gold Standard" Installer (v2.7.0)
 # Optimized for professional deployment on clean VMs
 
 set -e
@@ -28,8 +28,6 @@ draw_progress_bar() {
     local task=$2
     local filled_chars=$(( percent / 4 ))
     local empty_chars=$(( 25 - filled_chars ))
-    
-    # Clear the current line and redraw
     printf "\r\033[K%b➜ Installing: [" "${YELLOW}"
     printf "%b" "${GREEN}"
     for ((i=0; i<filled_chars; i++)); do printf "█"; done
@@ -38,30 +36,20 @@ draw_progress_bar() {
     printf "] %d%% %b(%s)%b" "$percent" "${BLUE}" "$task" "${NC}"
 }
 
-header() {
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}   LMBench - Professional Standard Installer${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-}
-
-# --- Main ---
-header
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}   LMBench - Professional Deployment${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # 1. Early Sudo Validation
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${YELLOW}➜ Validating permissions (sudo required)...${NC}"
     sudo -v || { echo -e "${RED}Error: Sudo permissions required.${NC}"; exit 1; }
 fi
 
 # 2. Cleanup
-echo -ne "${YELLOW}➜ Preparing clean slate...${NC}"
 rm -rf "$INSTALL_DIR"
-echo -e " ${GREEN}Done${NC}"
 
-# 3. Installation Flow with Progress
 steps=5
 current=0
-
 update_progress() {
     current=$((current + 1))
     local task=$1
@@ -70,25 +58,25 @@ update_progress() {
 }
 
 # Step 1: System Packages
-update_progress "System Prerequisites (Python, venv)"
+update_progress "System Environment"
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     sudo apt-get update -y &>/dev/null
     sudo apt-get install -y python3 python3-venv python3-pip build-essential &>/dev/null
 fi
 
 # Step 2: Virtual Environment
-update_progress "Isolated Python Environment"
+update_progress "Isolated Python Sandbox"
 mkdir -p "$INSTALL_DIR"
 chown "$REAL_USER:$REAL_USER" "$INSTALL_DIR"
 sudo -u "$REAL_USER" python3 -m venv "$VENV_PATH" &>/dev/null
 
 # Step 3: Core Dependencies
-update_progress "LMBench Core & Dependencies"
+update_progress "LMBench Engine & Core"
 sudo -u "$REAL_USER" "$VENV_PATH/bin/python3" -m pip install --upgrade pip &>/dev/null
 sudo -u "$REAL_USER" "$VENV_PATH/bin/python3" -m pip install -e . &>/dev/null
 
 # Step 4: Command Shim
-update_progress "Global Command Shim"
+update_progress "Global Entrypoint"
 mkdir -p "$BIN_DIR"
 cat <<EOF > "$BIN_DIR/$BIN_NAME"
 #!/bin/bash
@@ -98,9 +86,9 @@ chmod +x "$BIN_DIR/$BIN_NAME"
 chown "$REAL_USER:$REAL_USER" "$BIN_DIR/$BIN_NAME"
 
 # Step 5: Path Configuration
-update_progress "System Path Integration"
+update_progress "System Integration"
 if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
-    ln -sf "$BIN_DIR/$BIN_NAME" "/usr/local/bin/$BIN_NAME" &>/dev/null
+    sudo ln -sf "$BIN_DIR/$BIN_NAME" "/usr/local/bin/$BIN_NAME" &>/dev/null
 fi
 if ! grep -q "$BIN_DIR" "$REAL_HOME/.bashrc"; then
     echo "export PATH=\"
@@ -108,10 +96,13 @@ $PATH:$BIN_DIR\"" >> "$REAL_HOME/.bashrc"
 fi
 
 # Finalize
-echo -e "\n\n${GREEN}✔ LMBench installation successful!${NC}"
+echo -e "\n\n${GREEN}✔ LMBench v2.7.0 is now ready!${NC}"
 echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo -e " ${BLUE}GETTING STARTED:${NC}"
-echo -e " 1. Reload Path:      ${YELLOW}source ~/.bashrc${NC}"
-echo -e " 2. Run Benchmark:    ${GREEN}lmbench run --suite${NC}"
-echo -e " 3. Diagnostics:      ${GREEN}lmbench doctor${NC}"
+echo -e " [white]The 'lmbench' command has been added to your environment.[/white]"
+echo -e " [white]If it's not found, run: [bold cyan]source ~/.bashrc[/bold cyan][/white]\n"
+echo -e " Run benchmark now:  ${GREEN}lmbench run --suite${NC}"
 echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+# Clean temporary repo files if requested or just finish
+# We don't delete the current dir as the user might be in it,
+# but we've cleaned the internal install dir.

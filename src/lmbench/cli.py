@@ -105,14 +105,44 @@ def run(
     console.print("[bold green]LMBench[/bold green] is starting...", style="bold blue")
     doc = health.SystemDoctor(); issues = doc.diagnose()
     system_info = probe.print_system_info()
-    disco = discovery.BackendDiscovery(); found_backends = asyncio.run(disco.discover())
-    if not found_backends: return
+    # 2. Backend Discovery & Launch
+    disco = discovery.BackendDiscovery()
+    found_backends = asyncio.run(disco.discover())
+    
+    if not found_backends:
+        console.print("\n[bold red]No local LLM backends found (Ollama or LM Studio).[/bold red]")
+        console.print("[white]To benchmark, you need a backend running. We recommend installing Ollama:[/white]")
+        console.print("[bold cyan]  curl -fsSL https://ollama.com/install.sh | sh[/bold cyan]\n")
+        
+        if typer.confirm("Would you like me to try installing Ollama for you?"):
+            import subprocess
+            subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True)
+            # Re-discover
+            found_backends = asyncio.run(disco.discover())
+            if not found_backends: return
+        else:
+            return
+
     online_backends = [b for b, running in found_backends if running]
     if not online_backends and auto_start:
-        target_b, _ = found_backends[0]; l = launcher.BackendLauncher()
-        if l.launch(target_b.name) and l.wait_for_backend(target_b.name): online_backends = discovery.print_backend_status()
-        else: return
-    elif not online_backends: discovery.print_backend_status(); return
+        target_b, _ = found_backends[0]
+        l = launcher.BackendLauncher()
+        console.print(f"[white]➜ Backend '{target_b.name}' is installed but offline. Attempting to start...[/white]")
+        if l.launch(target_b.name):
+            if l.wait_for_backend(target_b.name):
+                # Refresh
+                res = asyncio.run(disco.discover())
+                online_backends = [b for b, r in res if r]
+            else:
+                console.print(f"[red]Failed to start {target_b.name}.[/red]")
+                return
+        else:
+            console.print(f"[red]Could not start {target_b.name}. Please start it manually.[/red]")
+            return
+    elif not online_backends:
+        discovery.print_backend_status()
+        console.print("\n[yellow]No backends are running. Run with --start to auto-launch.[/yellow]")
+        return
     else: discovery.print_backend_status()
     selected_backend = online_backends[0]; models_to_test, reasoning_list = [], []
     rec_eng = recommender.Recommender(system_info, intent=user_intent)

@@ -33,20 +33,37 @@ class LiveDashboard:
         self.raw_events = []; self.tokens = 0
 
     def generate_renderable(self):
+        # 1. Performance Panel (White/Bold)
         perf_text = Text()
-        perf_text.append(f"TPS: {self.tps:.1f}\n", style="bold magenta")
-        perf_text.append(f"TTFT: {self.ttft:.0f}ms\n", style="cyan")
+        perf_text.append(f"TPS: {self.tps:.1f}\n", style="bold white")
+        perf_text.append(f"TTFT: {self.ttft:.0f}ms\n", style="white")
         if len(self.tps_history) > 2:
-            perf_text.append("\nTrend: ", style="dim")
+            perf_text.append("\nTrend: ", style="dim white")
             bars = " ▂▃▄▅▆▇█"; history = self.tps_history[-15:]; h_min, h_max = min(history), max(history); h_range = max(1, h_max - h_min)
-            for v in history: idx = int(((v - h_min) / h_range) * (len(bars) - 1)); perf_text.append(bars[idx], style="magenta")
+            for v in history: idx = int(((v - h_min) / h_range) * (len(bars) - 1)); perf_text.append(bars[idx], style="bold white")
+
+        # 2. Debug HUD (Neutral)
         debug_table = Table.grid(expand=True)
-        debug_table.add_column(style="dim"); debug_table.add_column(justify="right", style="bold green")
-        debug_table.add_row("GPU Clock", f"{self.gpu_clock} MHz"); debug_table.add_row("Power", f"{self.power:.0f}W"); debug_table.add_row("Temp", f"{self.temp}°C")
-        event_text = Text("\n".join(self.raw_events[-5:]), style="dim green")
-        layout = Layout(); layout.split_row(Layout(name="sidebar", size=30), Layout(name="main"))
-        layout["sidebar"].split_column(Layout(Panel(perf_text, title="Perf", border_style="magenta")), Layout(Panel(debug_table, title="Debug HUD", border_style="blue")), Layout(Panel(event_text, title="Events", border_style="green")))
-        layout["main"].split_column(Layout(Panel(Text(self.text_buffer[-400:], style="italic"), title="Live Stream", border_style="white"), size=15), Layout(Panel(Text(f"Target: {self.model}\nReason: {self.reasoning}\nVRAM: {self.vram_used:.1f}/{self.vram_total:.0f}GB", style="cyan"), title="Context", border_style="cyan")))
+        debug_table.add_column(style="dim white"); debug_table.add_column(justify="right", style="bold white")
+        debug_table.add_row("GPU Clock", f"{self.gpu_clock} MHz")
+        debug_table.add_row("VRAM Usage", f"{self.vram_used:.1f} GB")
+        debug_table.add_row("Power Draw", f"{self.power:.0f} W")
+        debug_table.add_row("Thermal", f"{self.temp}°C")
+        
+        # 3. Raw Events
+        event_text = Text("\n".join(self.raw_events[-5:]), style="dim white")
+
+        layout = Layout()
+        layout.split_row(Layout(name="sidebar", size=30), Layout(name="main"))
+        layout["sidebar"].split_column(
+            Layout(Panel(perf_text, title="Performance", border_style="white")),
+            Layout(Panel(debug_table, title="Hardware HUD", border_style="white")),
+            Layout(Panel(event_text, title="Debug Log", border_style="white"))
+        )
+        layout["main"].split_column(
+            Layout(Panel(Text(self.text_buffer[-400:], style="italic white"), title="Model Output", border_style="white"), size=15),
+            Layout(Panel(Text(f"Target: {self.model}\n{self.reasoning}", style="white"), title="Model Context", border_style="white"))
+        )
         return layout
 
 class BenchmarkEngine:

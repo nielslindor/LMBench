@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v2.6.0 - Installer Polish: Removed terminal clearing and updated the progress bar to show granular task descriptions for a more transparent and professional installation experience."
+    changelog = "v2.7.0 - Professional Maturity: Neutral white-on-black UI redesign, proactive backend discovery with auto-Ollama installation, and a refined installer for immediate command access."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")
