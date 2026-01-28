@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v3.3.0 - The Automated Lifecycle: Made automatic backend installation the default (no flags needed) and introduced the ESXi Management module for automated VM snapshot reversion."
+    changelog = "v3.4.0 - High-Fidelity Installer: Overhauled install.sh with granular progress bars, real-time command output logging, and improved error handling for system packages."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

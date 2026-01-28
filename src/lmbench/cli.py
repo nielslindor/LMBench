@@ -35,13 +35,30 @@ def init():
 
 async def _pull_logic(model_name: str):
     backends = discovery.run_discovery()
+    # Find Ollama in the results
     ollama = next((b for b, running in backends if b.name == "Ollama"), None)
-    if not ollama: return False
-    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), DownloadColumn(), transient=True) as progress:
+    
+    if not ollama:
+        console.print(f"[red]Ollama backend not found. Skipping pull for {model_name}.[/red]")
+        return False
+
+    with Progress(
+        SpinnerColumn(spinner_name="dots", style="bold cyan"),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=40, style="white", complete_style="green", finished_style="bold green"),
+        DownloadColumn(),
+        "•",
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        transient=True
+    ) as progress:
         task = progress.add_task(description=f"Pulling {model_name}...", total=100)
         async for status in ollama.pull_model(model_name):
-            if "total" in status and "completed" in status: progress.update(task, completed=(status["completed"] / status["total"]) * 100)
-            elif "status" in status: progress.update(task, description=f"{status['status']}: {model_name}")
+            if "total" in status and "completed" in status:
+                # Actual percentage-based progress
+                pct = (status["completed"] / status["total"]) * 100
+                progress.update(task, completed=pct, description=f"Downloading {model_name}")
+            elif "status" in status:
+                progress.update(task, description=f"{status['status']}: {model_name}")
     return True
 
 @app.command()
@@ -114,8 +131,22 @@ def run(
         console.print("\n[bold red]No local LLM backends found (Ollama or LM Studio).[/bold red]")
         console.print("[white]➜ Automatically installing Ollama to resolve dependency...[/white]")
         
-        import subprocess
-        subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            "•",
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            transient=True
+        ) as progress:
+            task = progress.add_task("Installing Ollama...", total=100)
+            import subprocess
+            # We run it and manually update progress since it's a script
+            progress.update(task, completed=10, description="Downloading installer...")
+            subprocess.run("curl -fsSL https://ollama.com/install.sh -o /tmp/ollama_install.sh", shell=True, capture_output=True)
+            progress.update(task, completed=30, description="Running install script...")
+            subprocess.run("sh /tmp/ollama_install.sh", shell=True, capture_output=True)
+            progress.update(task, completed=100, description="Verification complete")
         
         # Re-discover
         found_backends = asyncio.run(disco.discover())

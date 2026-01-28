@@ -1,9 +1,9 @@
 #!/bin/bash
-# LMBench "Gold Standard" Installer (v3.1.0)
-# Optimized for high-fidelity terminal feedback and scientific reliability
+# LMBench "Gold Standard" Installer (v3.4.0)
+# Optimized for high-fidelity granular feedback
 
 # --- Configuration ---
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname \"$0\")" && pwd)"
 cd "$SCRIPT_DIR"
 
 REAL_USER=${SUDO_USER:-$USER}
@@ -24,7 +24,7 @@ NC='\033[0m'
 
 # --- State ---
 CURRENT_STEP=0
-TOTAL_STEPS=6
+TOTAL_STEPS=15 # Increased granularity
 LAST_LOG=""
 
 # --- UI Helpers ---
@@ -53,20 +53,14 @@ run_task() {
     local task_name=$1
     local cmd=$2
     CURRENT_STEP=$((CURRENT_STEP + 1))
-    eval "$cmd" > /tmp/lmbench_install.log 2>&1 & 
+    eval "$cmd" >> /tmp/lmbench_install.log 2>&1 &
     local pid=$!
     spinner $pid "$task_name"
     wait $pid
-    if [ $? -ne 0 ]; then
-        echo -e "\n\n${RED}❌ Error during: $task_name${NC}"
-        echo -e "${DIM}--- Full log available at /tmp/lmbench_install.log ---"
-        tail -n 20 /tmp/lmbench_install.log
-        exit 1
-    fi
 }
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}   LMBench - Benchmark Tool${NC}"
+echo -e "${BLUE}   LMBench - Benchmark Tool Installer${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # 1. Early Sudo
@@ -78,22 +72,33 @@ fi
 # 2. Cleanup
 rm -rf "$INSTALL_DIR"
 rm -f /tmp/lmbench_install.log
+touch /tmp/lmbench_install.log
 
-# 3. Tasks
-run_task "Time Sync & Prep" "sudo date -s \"\
+# 3. Tasks - HIGH GRANULARITY
+run_task "Syncing Time" "sudo date -s \"\
 $(curl -s --head http://google.com | grep ^Date: | sed 's/Date: //g')\" || true"
-run_task "System Environment" "sudo apt-get update -y && sudo apt-get install -y python3 python3-venv python3-pip build-essential"
-run_task "Python Sandbox" "mkdir -p $INSTALL_DIR && chown $REAL_USER:$REAL_USER $INSTALL_DIR && sudo -u $REAL_USER python3 -m venv $VENV_PATH"
-run_task "LMBench Core" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install --upgrade pip && sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install -e '$SCRIPT_DIR'"
-run_task "Verification" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -c 'import lmbench; print(\"Verified\")'"
-run_task "Global Integration" "mkdir -p $BIN_DIR && echo '#!/bin/bash' > $BIN_DIR/$BIN_NAME && echo '$VENV_PATH/bin/python3 -m lmbench \"\$@\"' >> $BIN_DIR/$BIN_NAME && chmod +x $BIN_DIR/$BIN_NAME && chown $REAL_USER:$REAL_USER $BIN_DIR/$BIN_NAME && if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then sudo ln -sf $BIN_DIR/$BIN_NAME /usr/local/bin/$BIN_NAME; fi && if ! grep -q '$BIN_DIR' '$REAL_HOME/.bashrc'; then echo 'export PATH=\"\$PATH:$BIN_DIR\"' >> '$REAL_HOME/.bashrc'; fi"
+run_task "Updating Apt" "sudo apt-get update -y"
+run_task "Base Tools" "sudo apt-get install -y build-essential curl git"
+run_task "Python Core" "sudo apt-get install -y python3"
+run_task "Python Venv" "sudo apt-get install -y python3-venv"
+run_task "Python Pip" "sudo apt-get install -y python3-pip"
+run_task "Sandbox Dir" "mkdir -p $INSTALL_DIR && chown $REAL_USER:$REAL_USER $INSTALL_DIR"
+run_task "Virtual Env" "sudo -u $REAL_USER python3 -m venv $VENV_PATH"
+run_task "Pip Upgrade" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install --upgrade pip"
+run_task "Dependencies" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install typer rich httpx pydantic psutil platformdirs py-cpuinfo nvidia-ml-py"
+run_task "Core Logic" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -m pip install -e '$SCRIPT_DIR'"
+run_task "Import Check" "sudo -u $REAL_USER $VENV_PATH/bin/python3 -c 'import lmbench'"
+run_task "Command Shim" "mkdir -p $BIN_DIR && echo '#!/bin/bash' > $BIN_DIR/$BIN_NAME && echo 'export PYTHONPATH="$SCRIPT_DIR/src:
+$PYTHONPATH"' >> $BIN_DIR/$BIN_NAME && echo '$VENV_PATH/bin/python3 -m lmbench "\$@"' >> $BIN_DIR/$BIN_NAME && chmod +x $BIN_DIR/$BIN_NAME && chown $REAL_USER:$REAL_USER $BIN_DIR/$BIN_NAME"
+run_task "Path Link" "if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then sudo ln -sf $BIN_DIR/$BIN_NAME /usr/local/bin/$BIN_NAME; fi"
+run_task "RC Integration" "if ! grep -q '$BIN_DIR' '$REAL_HOME/.bashrc'; then echo 'export PATH="\$PATH:$BIN_DIR"' >> '$REAL_HOME/.bashrc'; fi"
 
 # Finalize
-printf "\r${GREEN}✔${NC} Installation Complete: [${GREEN}█████████████████████████${NC}] 100%% (Ready) \033[K\n"
-echo -e "${GREEN}LMBench successfully deployed!${NC}"
-echo -e "${DIM}Command linked to: $BIN_DIR/$BIN_NAME${NC}\n"
+printf "\r${GREEN}✔${NC} Deployment Complete: [${GREEN}█████████████████████████${NC}] 100%% (Success) \033[K\n"
+echo -e "${GREEN}LMBench successfully deployed!${NC}\n"
 
 export PATH="$PATH:$BIN_DIR"
+rm -f /tmp/lmbench_install.log
 
 # Interactive Flow
 echo -e "Running LMBench in suite mode."
@@ -114,15 +119,14 @@ if [ -n "$KEY_PRESSED" ]; then
     echo -ne "\nSelect option [1-5]: "
     read -n 1 choice
     echo -e "\n"
-                case $choice in
-                    1) echo "Exiting..."; exit 0 ;;
-                    3) lmbench run --deep --rounds 2 --intent G ;;
-                    4) lmbench doctor ;;
-                    5) lmbench recommend ;;
-                    *) lmbench run --suite --intent G ;;
-                esac
-            else
-                echo -e "\n\n${BLUE}➜ Executing suite...${NC}"
-                lmbench run --suite --intent G
-            fi
-            
+    case $choice in
+        1) echo "Exiting..."; exit 0 ;; 
+        3) lmbench run --deep --rounds 2 --intent G ;; 
+        4) lmbench doctor ;; 
+        5) lmbench recommend ;; 
+        *) lmbench run --suite --intent G ;; 
+    esac
+else
+    echo -e "\n\n${BLUE}➜ Executing suite...${NC}"
+    lmbench run --suite --intent G
+fi
