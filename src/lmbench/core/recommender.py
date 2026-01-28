@@ -4,9 +4,18 @@ from rich.table import Table
 from .registry import ModelRegistry
 
 class Recommender:
-    def __init__(self, system_info: Dict):
+    def __init__(self, system_info: Dict, intent: str = "G"):
         self.info = system_info
         self.console = Console()
+        self.intent = intent # C, A, R, G
+        
+        # Mapping intent to type priority
+        self.intent_map = {
+            "C": "Code",
+            "A": "Tool Use",
+            "R": "General", # Heuristic for now
+            "G": "General"
+        }
         
         # Calculate usable VRAM
         self.vram = 0
@@ -27,10 +36,19 @@ class Recommender:
         # Filter runnable (allow 20% overhead for quantization)
         runnable = [m for m in candidates if m["vram_gb"] <= (self.vram * 1.2)]
         
-        # Selection priority
-        priority_order = ["Code", "Reasoning", "Tool Use", "General", "Edge"]
+        # Selection priority based on intent
+        primary_type = self.intent_map.get(self.intent, "General")
+        priority_order = [primary_type, "Code", "Reasoning", "Tool Use", "General", "Edge"]
         
-        for p_type in priority_order:
+        # Remove duplicates while maintaining order
+        seen_types = set()
+        clean_priority = []
+        for t in priority_order:
+            if t not in seen_types:
+                clean_priority.append(t)
+                seen_types.add(t)
+        
+        for p_type in clean_priority:
             for m in runnable:
                 if m["type"] == p_type and m not in selected:
                     selected.append(m)

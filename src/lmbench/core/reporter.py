@@ -55,9 +55,6 @@ class Reporter:
         
         self.console.print("\n")
         self.console.print(table)
-        
-        self.console.print("\n")
-        self.console.print(table)
 
     def save_reports(self, results: List[Dict], backend_name: str):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

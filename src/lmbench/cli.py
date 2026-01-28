@@ -4,7 +4,7 @@ from typing import List, Optional
 from rich.console import Console
 from .system import probe, health
 from .backends import discovery, launcher
-from .core import engine, updater, recommender, config
+from .core import engine, updater, recommender, config, ai_recommender
 from .core.reporter import Reporter
 
 app = typer.Typer(
@@ -16,12 +16,19 @@ console = Console()
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, DownloadColumn
 
+from .system import probe, health, storage
+
 @app.command()
 def init():
     """
     Interactively set up your default benchmarking parameters.
     """
     console.print("[bold blue]LMBench Setup[/bold blue]\n")
+    
+    # 1. Storage Scan
+    sm = storage.StorageManager()
+    sm.recommend_storage()
+
     mgr = config.ConfigManager()
     cfg = mgr.load()
 
@@ -38,7 +45,8 @@ def init():
 
 async def _pull_logic(model_name: str):
     backends = discovery.run_discovery()
-    ollama = next((b for b in backends if b.name == "Ollama"), None)
+    # Find Ollama in the results (which is a list of tuples)
+    ollama = next((b for b, running in backends if b.name == "Ollama"), None)
     
     if not ollama:
         console.print(f"[red]Ollama backend not found. Skipping pull for {model_name}.[/red]")
@@ -67,8 +75,6 @@ def pull(model_name: str):
     if asyncio.run(_pull_logic(model_name)):
         console.print(f"[bold green]✔ Successfully pulled {model_name}! [/bold green]")
 
-from .core import engine, updater, recommender, config, ai_recommender
-
 @app.command()
 def recommend(
     pull_needed: bool = typer.Option(False, "--pull", "-p", help="Interactively pull recommended models"),
@@ -93,6 +99,7 @@ def recommend(
         else:
             console.print("[bold blue]LMBench AI Recommender[/bold blue] is reasoning about your hardware...\n")
             selected = ai_recommender.run_ai_recommendations(ollama.url, system_info)
+            from rich.table import Table
             title = f"Top {len(selected)} AI-Powered Recommendations"
             table = Table(title=title, box=None)
             table.add_column("Model Type", style="bold yellow")
@@ -111,7 +118,6 @@ def recommend(
     if pull_needed:
         console.print("\n[bold blue]Interactive Pull[/bold blue]")
         for m in selected:
-            # Handle both list types
             m_id = m.get("id") if isinstance(m, dict) else m
             if typer.confirm(f"Do you want to pull {m_id}?"):
                 asyncio.run(_pull_logic(m_id))
@@ -142,6 +148,7 @@ def run(
     rounds: Optional[int] = typer.Option(None, "--rounds", "-r", help="Number of rounds per test"),
     prompt: Optional[str] = typer.Option(None, "--prompt", "-p", help="Custom prompt for single test"),
     auto_start: bool = typer.Option(True, "--start", help="Auto-start backends if they are found on disk"),
+    intent: Optional[str] = typer.Option(None, "--intent", "-i", help="Primary goal: [C]ode, [A]gent, [R]oleplay, [G]eneral"),
 ):
     """
     Run the standard benchmark suite.
@@ -149,6 +156,16 @@ def run(
     mgr = config.ConfigManager()
     cfg = mgr.load()
     
+    # Resolve Intent
+    user_intent = intent
+    if not user_intent and not (model or all_models or top):
+        console.print("\n[bold cyan]What is your primary goal for these models?[/bold cyan]")
+        console.print(" [C] - Code Generation & Problem Solving")
+        console.print(" [A] - AI Agent & Tool Use")
+        console.print(" [R] - Creative Writing & Roleplaying")
+        console.print(" [G] - General-Purpose Chat & Summarization")
+        user_intent = typer.prompt("Select one", default="G").upper()
+
     final_rounds = rounds if rounds is not None else cfg.rounds
     final_deep = deep if deep is not None else cfg.deep
     final_matrix = matrix if matrix is not None else cfg.matrix
@@ -199,20 +216,12 @@ def run(
     models_to_test = []
 
     if top:
-        rec_eng = recommender.Recommender(system_info)
+        rec_eng = recommender.Recommender(system_info, intent=user_intent)
         recs = rec_eng.select_top_10()
-        
         available_ids = selected_backend.discovered_models
-        console.print(f"\n[bold blue]Batch Mode: Target {top} Models[/bold blue]")
-        
-        # Strategy:
-        # 1. Start with installed models that are in the recommendation list
         rec_ids = [m["id"] for m in recs]
         ready = [m_id for m_id in available_ids if m_id in rec_ids]
-        
-        # 2. Add models that need pulling (if supported)
         to_pull = [m_id for m_id in rec_ids if m_id not in available_ids]
-        
         models_to_test = ready
         if selected_backend.name == "Ollama":
             for m_id in to_pull:
@@ -220,27 +229,25 @@ def run(
                 console.print(f"[yellow]Pulling missing model: {m_id}...[/yellow]")
                 if asyncio.run(_pull_logic(m_id)):
                     models_to_test.append(m_id)
-        
-        # 3. If we still don't have enough, fill with other installed models
         if len(models_to_test) < top:
             other_installed = [m_id for m_id in available_ids if m_id not in models_to_test]
             models_to_test.extend(other_installed[:top - len(models_to_test)])
-            
         models_to_test = models_to_test[:top]
     elif all_models:
         models_to_test = selected_backend.discovered_models
     elif model:
         models_to_test = model
     else:
-        # Smart Default
-        rec_eng = recommender.Recommender(system_info)
+        rec_eng = recommender.Recommender(system_info, intent=user_intent)
         recs = rec_eng.select_top_10()
-        available_ids = set(selected_backend.discovered_models)
+        available_ids = selected_backend.discovered_models
         ready = [m["id"] for m in recs if m["id"] in available_ids]
         if ready:
-            models_to_test = [ready[0]]
+            models_to_test = ready[:10]
+            console.print(f"\n[yellow]No model specified. Benchmarking [bold]{len(models_to_test)}[/bold] recommended models found in {selected_backend.name}...[/yellow]")
         else:
-            models_to_test = [selected_backend.discovered_models[0]]
+            models_to_test = available_ids[:3]
+            console.print(f"\n[yellow]No recommendations installed. Benchmarking first {len(models_to_test)} models in {selected_backend.name}...[/yellow]")
 
     if not models_to_test:
         console.print("[red]No valid models selected for testing.[/red]")
