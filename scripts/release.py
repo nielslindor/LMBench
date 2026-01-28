@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v2.2.0 - Zero-Config Install: Added one-command installers (install.sh/install.ps1) that automatically detect and install Python and dependencies for a seamless VM experience."
+    changelog = "v2.2.1 - Installer Fix: Updated install.sh to explicitly check for and install python3-pip if missing, even when python3 is present."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")
