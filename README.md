@@ -12,18 +12,24 @@ LMBench is a cross-platform tool designed to provide accurate, comparable, and a
 *   **Actionable Metrics:** Measures what matters—Time To First Token (TTFT), Tokens Per Second (TPS), and Memory Pressure.
 *   **Vibes:** A clean, modern CLI experience designed for clarity.
 
-## Installation
+## Quick Start (Zero Config)
 
-```bash
-pip install lmbench
+Clone the repo and run the installer for your OS. It will automatically handle Python and dependencies.
+
+### Windows (PowerShell)
+```powershell
+git clone https://github.com/nielslindor/LMBench.git
+cd LMBench
+.\install.ps1
 ```
 
-## Usage
-
+### Linux / macOS (Bash)
 ```bash
-lmbench run
+git clone https://github.com/nielslindor/LMBench.git
+cd LMBench
+chmod +x install.sh && ./install.sh
 ```
 
-## Contributing
+## Features
 
 We believe in open standards. If you want to add support for a new backend or metric, please open a PR.

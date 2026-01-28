@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v2.1.0 - The Clean Sweep: Added final model ejection after suite completion to ensure total resource deallocation and return the system to a clean state."
+    changelog = "v2.2.0 - Zero-Config Install: Added one-command installers (install.sh/install.ps1) that automatically detect and install Python and dependencies for a seamless VM experience."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

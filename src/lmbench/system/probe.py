@@ -20,6 +20,11 @@ class Telemetry:
         self.total_vram_gb = 0.0
         self.cpu_pct = 0.0
         self.ram_pct = 0.0
+        self.gpu_util = 0
+        self.mem_util = 0
+        self.gpu_clock = 0
+        self.mem_clock = 0
+        self.fan_speed = 0
         self.active = False
 
     def start(self):
@@ -41,20 +46,30 @@ class Telemetry:
             pynvml.nvmlInit()
             handle = pynvml.nvmlDeviceGetHandleByIndex(0)
             
-            # Power
+            # Power & Temp
             power = pynvml.nvmlDeviceGetPowerUsage(handle) / 1000.0
-            if power > self.peak_power:
-                self.peak_power = power
-                
-            # Temp
+            if power > self.peak_power: self.peak_power = power
             temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
-            if temp > self.max_temp:
-                self.max_temp = temp
+            if temp > self.max_temp: self.max_temp = temp
             
             # VRAM
             mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
             self.current_vram_gb = mem.used / (1024**3)
             self.total_vram_gb = mem.total / (1024**3)
+
+            # --- DEBUG INFO ---
+            # Utilization (GPU compute vs Memory bandwidth)
+            util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+            self.gpu_util = util.gpu
+            self.mem_util = util.memory
+            
+            # Clocks
+            self.gpu_clock = pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_GRAPHICS)
+            self.mem_clock = pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_MEM)
+            
+            # Fan
+            try: self.fan_speed = pynvml.nvmlDeviceGetFanSpeed(handle)
+            except: self.fan_speed = 0
                 
             pynvml.nvmlShutdown()
         except Exception:
