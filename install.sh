@@ -1,11 +1,16 @@
 #!/bin/bash
-# LMBench High-Fidelity Installer
+# LMBench High-Fidelity Installer (v2.5.1)
 # Optimized for professional deployment on clean VMs
 
 set -e
 
 # --- Configuration ---
-INSTALL_DIR="$HOME/.lmbench"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+REAL_USER=${SUDO_USER:-$USER}
+REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
+INSTALL_DIR="$REAL_HOME/.lmbench"
 VENV_PATH="$INSTALL_DIR/venv"
 BIN_DIR="$INSTALL_DIR/bin"
 BIN_NAME="lmbench"
@@ -20,14 +25,14 @@ NC='\033[0m'
 # --- UI Helpers ---
 draw_progress_bar() {
     local percent=$1
-    local width=40
-    local filled=$(( percent * width / 100 ))
-    local empty=$(( width - filled ))
-    printf "\r${YELLOW}Installing: [${GREEN}"
-    printf "%${filled}s" | tr ' ' '█'
-    printf "${NC}"
-    printf "%${empty}s" | tr ' ' '░'
-    printf "] ${percent}%"
+    local filled_chars=$(( percent / 4 ))
+    local empty_chars=$(( 25 - filled_chars ))
+    printf "\r%b➜ Installing: [" "${YELLOW}"
+    printf "%b" "${GREEN}"
+    for ((i=0; i<filled_chars; i++)); do printf "█"; done
+    printf "%b" "${NC}"
+    for ((i=0; i<empty_chars; i++)); do printf "-"; done
+    printf "] %d%%" "$percent"
 }
 
 header() {
@@ -37,22 +42,21 @@ header() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
-# --- Initialization ---
 header
 
 # 1. Early Sudo Validation
-echo -e "${YELLOW}➜ Validating permissions...${NC}"
-sudo -v || { echo -e "${RED}Error: Sudo permissions required for system prerequisites.${NC}"; exit 1; }
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${YELLOW}➜ Validating permissions (sudo required)...${NC}"
+    sudo -v || { echo -e "${RED}Error: Sudo permissions required.${NC}"; exit 1; }
+fi
 
 # 2. Cleanup
 echo -ne "${YELLOW}➜ Preparing clean slate...${NC}"
 rm -rf "$INSTALL_DIR"
 echo -e " ${GREEN}Done${NC}"
 
-# 3. Installation Flow with Progress
 steps=5
 current=0
-
 update_progress() {
     current=$((current + 1))
     percent=$((current * 100 / steps))
@@ -69,12 +73,13 @@ fi
 # Step 2: Virtual Environment
 update_progress
 mkdir -p "$INSTALL_DIR"
-python3 -m venv "$VENV_PATH" &>/dev/null
+chown "$REAL_USER:$REAL_USER" "$INSTALL_DIR"
+sudo -u "$REAL_USER" python3 -m venv "$VENV_PATH" &>/dev/null
 
 # Step 3: Core Dependencies
 update_progress
-"$VENV_PATH/bin/python" -m pip install --upgrade pip &>/dev/null
-"$VENV_PATH/bin/python" -m pip install -e . &>/dev/null
+sudo -u "$REAL_USER" "$VENV_PATH/bin/python" -m pip install --upgrade pip &>/dev/null
+sudo -u "$REAL_USER" "$VENV_PATH/bin/python" -m pip install -e . &>/dev/null
 
 # Step 4: Command Shim
 update_progress
@@ -84,16 +89,16 @@ cat <<EOF > "$BIN_DIR/$BIN_NAME"
 "$VENV_PATH/bin/python" -m lmbench "\$@"
 EOF
 chmod +x "$BIN_DIR/$BIN_NAME"
+chown "$REAL_USER:$REAL_USER" "$BIN_DIR/$BIN_NAME"
 
 # Step 5: Path Configuration
 update_progress
-if [ -w /usr/local/bin ]; then
-    sudo ln -sf "$BIN_DIR/$BIN_NAME" "/usr/local/bin/$BIN_NAME" &>/dev/null
-else
-    if [[ ":$PATH:" != ":$BIN_DIR:"* ]]; then
-        echo "export PATH=\"
-$PATH:$BIN_DIR\"" >> "$HOME/.bashrc"
-    fi
+if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+    ln -sf "$BIN_DIR/$BIN_NAME" "/usr/local/bin/$BIN_NAME" &>/dev/null
+fi
+if ! grep -q "$BIN_DIR" "$REAL_HOME/.bashrc"; then
+    echo "export PATH=\"
+$PATH:$BIN_DIR\"" >> "$REAL_HOME/.bashrc"
 fi
 
 # Finalize
