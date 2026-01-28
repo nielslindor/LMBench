@@ -21,9 +21,11 @@ class ModelRegistry:
         
         # TIER: Large (30B+)
         {"id": "llama3:70b", "name": "Llama 3 (70B)", "vram_gb": 40, "type": "Reasoning", "tier": "Large"},
-        {"id": "mixtral", "name": "Mixtral (8x7B)", "vram_gb": 24, "type": "General", "tier": "Large"},
+        {"id": "mixtral:8x7b", "name": "Mixtral (8x7B)", "vram_gb": 24, "type": "General", "tier": "Large"},
         {"id": "codestral", "name": "Codestral (22B)", "vram_gb": 18, "type": "Code", "tier": "Large"},
-        {"id": "command-r", "name": "Command R (35B)", "vram_gb": 24, "type": "Tool Use", "tier": "Large"}
+        {"id": "command-r", "name": "Command R (35B)", "vram_gb": 24, "type": "Tool Use", "tier": "Large"},
+        {"id": "llama3.1:8b", "name": "Llama 3.1 (8B)", "vram_gb": 8, "type": "General", "tier": "Mid"},
+        {"id": "llama3.1:70b", "name": "Llama 3.1 (70B)", "vram_gb": 40, "type": "Reasoning", "tier": "Large"}
     ]
 
     @classmethod

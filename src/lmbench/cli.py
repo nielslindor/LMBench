@@ -67,23 +67,54 @@ def pull(model_name: str):
     if asyncio.run(_pull_logic(model_name)):
         console.print(f"[bold green]✔ Successfully pulled {model_name}! [/bold green]")
 
+from .core import engine, updater, recommender, config, ai_recommender
+
 @app.command()
 def recommend(
-    pull_needed: bool = typer.Option(False, "--pull", "-p", help="Interactively pull recommended models")
+    pull_needed: bool = typer.Option(False, "--pull", "-p", help="Interactively pull recommended models"),
+    use_ai: bool = typer.Option(False, "--ai", "-a", help="Use a transient AI model for intelligent recommendations")
 ):
     """
     Recommend models based on your hardware profile.
     """
     system_info = probe.get_system_info()
-    rec = recommender.Recommender(system_info)
-    selected = rec.select_top_10()
-    rec.print_recommendations()
+    
+    if use_ai:
+        disco = discovery.BackendDiscovery()
+        backends = asyncio.run(disco.discover())
+        online_backends = [b for b, running in backends if running]
+        ollama = next((b for b in online_backends if b.name == "Ollama"), None)
+        
+        if not ollama:
+            console.print("[yellow]AI Recommender requires a running Ollama instance. Falling back to heuristic.[/yellow]")
+            rec = recommender.Recommender(system_info)
+            selected = rec.select_top_10()
+            rec.print_recommendations()
+        else:
+            console.print("[bold blue]LMBench AI Recommender[/bold blue] is reasoning about your hardware...\n")
+            selected = ai_recommender.run_ai_recommendations(ollama.url, system_info)
+            title = f"Top {len(selected)} AI-Powered Recommendations"
+            table = Table(title=title, box=None)
+            table.add_column("Model Type", style="bold yellow")
+            table.add_column("Model ID", style="bold green")
+            table.add_column("Tier", style="dim")
+            table.add_column("Est VRAM", justify="right")
+            for m in selected:
+                table.add_row(m.get("type", "Unknown"), m.get("id", "Unknown"), m.get("tier", "Unknown"), f"{m.get('vram_gb', '?')}GB")
+            console.print(table)
+            console.print(f"\n[dim]Note: Run 'lmbench pull <id>' to fetch any of these models.[/dim]")
+    else:
+        rec = recommender.Recommender(system_info)
+        selected = rec.select_top_10()
+        rec.print_recommendations()
     
     if pull_needed:
         console.print("\n[bold blue]Interactive Pull[/bold blue]")
         for m in selected:
-            if typer.confirm(f"Do you want to pull {m['id']}?"):
-                asyncio.run(_pull_logic(m['id']))
+            # Handle both list types
+            m_id = m.get("id") if isinstance(m, dict) else m
+            if typer.confirm(f"Do you want to pull {m_id}?"):
+                asyncio.run(_pull_logic(m_id))
 
 @app.command()
 def update():
