@@ -22,7 +22,7 @@ class Reporter:
         
         sorted_results = sorted(results, key=lambda x: x["score"], reverse=True)
 
-        table = Table(title="Gold Standard Rankings", box=None)
+        table = Table(title="LMBench Rankings", box=None)
         table.add_column("Rank", justify="center")
         table.add_column("Model", style="bold cyan")
         table.add_column("Test", style="yellow")

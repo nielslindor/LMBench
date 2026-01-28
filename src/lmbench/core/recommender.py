@@ -48,7 +48,7 @@ class Recommender:
     def print_recommendations(self):
         selected = self.select_top_10()
         
-        title = f"Top {len(selected)} Gold Standard Selections"
+        title = f"Top {len(selected)} Recommended Models"
         if self.is_cpu_only:
             title += " (CPU Optimized)"
         else:

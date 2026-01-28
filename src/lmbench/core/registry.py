@@ -1,7 +1,7 @@
 from typing import List, Dict
 
 class ModelRegistry:
-    # Curated Gold Standard models
+    # Curated candidate models
     CANDIDATES = [
         # TIER: Edge (1B-4B)
         {"id": "phi3:mini", "name": "Phi-3 Mini (3.8B)", "vram_gb": 4, "type": "General", "tier": "Edge"},
