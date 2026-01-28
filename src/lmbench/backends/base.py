@@ -17,6 +17,11 @@ class BaseBackend(ABC):
         pass
 
     @abstractmethod
+    async def unload_all(self) -> bool:
+        """Eject all loaded models to free up resources."""
+        pass
+
+    @abstractmethod
     async def stream_generate(self, model: str, prompt: str) -> AsyncGenerator[Dict, None]:
         """Stream responses from the backend."""
         pass

@@ -22,6 +22,15 @@ class LMStudioBackend(BaseBackend):
             return [{"name": models[0], "size": "Unknown"}]
         return []
 
+    async def unload_all(self) -> bool:
+        """Use lms CLI to unload all models."""
+        import subprocess
+        try:
+            result = subprocess.run("lms unload --all", shell=True, capture_output=True, text=True)
+            return result.returncode == 0
+        except Exception:
+            return False
+
     async def stream_generate(self, model: str, prompt: str, options: Optional[Dict] = None) -> AsyncGenerator[Dict, None]:
         async with httpx.AsyncClient(timeout=None) as client:
             # Note: LM Studio handles offloading in its GUI, 

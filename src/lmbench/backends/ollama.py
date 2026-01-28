@@ -24,6 +24,24 @@ class OllamaBackend(BaseBackend):
             pass
         return []
 
+    async def unload_all(self) -> bool:
+        """Eject all models by sending a request with keep_alive: 0."""
+        loaded = await self.get_loaded_models()
+        if not loaded:
+            return True
+            
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for model in loaded:
+                try:
+                    # Ollama unloads if you call generate with keep_alive: 0
+                    await client.post(f"{self.url}/api/generate", json={
+                        "model": model["name"],
+                        "keep_alive": 0
+                    })
+                except Exception:
+                    continue
+        return True
+
     async def stream_generate(self, model: str, prompt: str, options: Optional[Dict] = None) -> AsyncGenerator[Dict, None]:
         async with httpx.AsyncClient(timeout=None) as client:
             payload = {
