@@ -40,11 +40,15 @@ class Reporter:
             if r["quality_pass"] is True: q_val = "✔"
             elif r["quality_pass"] is False: q_val = "✘"
             
+            tps_display = f"{r['tps']:.1f}"
+            if r.get("tps_std", 0) > 0:
+                tps_display += f" [dim]±{r['tps_std']:.1f}[/dim]"
+            
             table.add_row(
                 rank,
                 r["model"], 
                 r.get("test_name", "Default"),
-                f"{r['tps']:.1f}", 
+                tps_display, 
                 str(r["score"]),
                 q_val
             )

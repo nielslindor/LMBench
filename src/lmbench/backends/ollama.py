@@ -14,6 +14,16 @@ class OllamaBackend(BaseBackend):
             pass
         return []
 
+    async def get_loaded_models(self) -> List[Dict]:
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                response = await client.get(f"{self.url}/api/ps")
+                if response.status_code == 200:
+                    return response.json().get("models", [])
+        except Exception:
+            pass
+        return []
+
     async def stream_generate(self, model: str, prompt: str, options: Optional[Dict] = None) -> AsyncGenerator[Dict, None]:
         async with httpx.AsyncClient(timeout=None) as client:
             payload = {

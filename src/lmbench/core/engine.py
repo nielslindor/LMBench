@@ -3,9 +3,9 @@ import time
 import json
 import asyncio
 import re
+import statistics
 from typing import Dict, List, Optional, AsyncGenerator
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.live import Live
 from rich.panel import Panel
 from rich.layout import Layout
@@ -25,12 +25,21 @@ class BenchmarkSuite:
 
     @staticmethod
     def get_context_test():
-        long_context = "Repeat the word 'AI' 500 times. " * 20 
+        long_context = "The quick brown fox jumps over the lazy dog. " * 400
         return {
-            "name": "Context Prefill",
+            "name": "Long Context",
             "type": "performance",
-            "prompt": long_context + "\n\nSummarize the purpose of the text above in one sentence.",
-            "description": "Measures how fast the model processes a large input (Prefill)."
+            "prompt": long_context + "\n\nSummarize the text above in 50 words.",
+            "description": "Measures speed with a heavy context load."
+        }
+
+    @staticmethod
+    def get_code_test():
+        return {
+            "name": "Code Generation",
+            "type": "code",
+            "prompt": "Write a Python script that calculates the Fibonacci sequence up to N terms using recursion and includes a main block to test it.",
+            "description": "Tests code quality and logic."
         }
 
     @staticmethod
@@ -41,16 +50,6 @@ class BenchmarkSuite:
             "prompt": "Sally has 3 brothers. Each of her brothers has 2 sisters. How many sisters does Sally have?",
             "expected": "1",
             "description": "Tests basic logical reasoning."
-        }
-
-    @staticmethod
-    def get_structured_test():
-        return {
-            "name": "JSON Extraction",
-            "type": "quality",
-            "prompt": "Extract the name and age from this text into a JSON object: 'John Doe is a 34-year-old engineer from New York.'",
-            "expected_keys": ["name", "age"],
-            "description": "Tests ability to produce valid structured output."
         }
 
 class LiveDashboard:
@@ -85,36 +84,48 @@ class BenchmarkEngine:
     def __init__(self, backend: BaseBackend):
         self.backend = backend
 
-    async def run_benchmark(self, model: str, test: Dict, options: Optional[Dict] = None) -> Dict:
+    def _verify_code(self, code: str) -> bool:
+        try:
+            clean_code = re.sub(r'```python\n(.*?)```', r'\1', code, flags=re.DOTALL)
+            if "```" in clean_code:
+                clean_code = re.sub(r'```\n(.*?)```', r'\1', clean_code, flags=re.DOTALL)
+            
+            import py_compile
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as f:
+                f.write(clean_code.encode('utf-8'))
+                temp_name = f.name
+            
+            py_compile.compile(temp_name, doraise=True)
+            return True
+        except Exception:
+            return False
+
+    async def run_benchmark(self, model: str, test: Dict, options: Optional[Dict] = None, rounds: int = 1) -> Dict:
         from ..system.probe import Telemetry
         telemetry = Telemetry()
         dash = LiveDashboard(model, test["name"])
         
-        metrics = {
-            "model": model,
-            "test_name": test["name"],
-            "test_type": test["type"],
-            "options": options or {},
-            "ttft_ms": 0.0,
-            "tps": 0.0,
-            "total_tokens": 0,
-            "duration_s": 0.0,
-            "status": "Success",
-            "quality_pass": None,
-            "peak_power_w": 0.0,
-            "max_temp_c": 0,
-            "output": ""
-        }
+        round_results = []
+        
+        for r in range(rounds):
+            metrics = {
+                "ttft_ms": 0.0,
+                "tps": 0.0,
+                "tokens": 0,
+                "power": 0.0,
+                "output": ""
+            }
 
-        start_time = time.perf_counter()
-        first_token_time = None
-        tokens_received = 0
-        full_response = []
-        
-        telemetry.start()
-        
-        try:
+            start_time = time.perf_counter()
+            first_token_time = None
+            tokens_received = 0
+            full_response = []
+            
+            telemetry.start()
+            
             with Live(dash.generate_renderable(), refresh_per_second=10) as live:
+                dash.test_name = f"{test['name']} (Round {r+1}/{rounds})"
                 async for chunk in self.backend.stream_generate(model, test["prompt"], options):
                     telemetry.poll()
                     
@@ -141,43 +152,38 @@ class BenchmarkEngine:
                             live.update(dash.generate_renderable())
                     
                     if self.backend.is_compatible(chunk):
-                        if "eval_count" in chunk:
-                            tokens_received = chunk["eval_count"]
                         break
 
             end_time = time.perf_counter()
             telemetry.stop()
             
-            metrics["peak_power_w"] = telemetry.peak_power
-            metrics["max_temp_c"] = telemetry.max_temp
-            metrics["duration_s"] = end_time - start_time
-            metrics["total_tokens"] = tokens_received
+            metrics["tps"] = (tokens_received - 1) / (end_time - first_token_time) if first_token_time else 0
+            metrics["tokens"] = tokens_received
+            metrics["power"] = telemetry.peak_power
             metrics["output"] = "".join(full_response)
-            
-            if first_token_time and metrics["duration_s"] > 0:
-                gen_duration = end_time - first_token_time
-                if gen_duration > 0:
-                    metrics["tps"] = (tokens_received - 1) / gen_duration
+            round_results.append(metrics)
 
-            if test["type"] == "quality":
-                if "expected" in test:
-                    metrics["quality_pass"] = test["expected"] in metrics["output"]
-                elif "expected_keys" in test:
-                    try:
-                        json_match = re.search(r'\{.*\}', metrics["output"], re.DOTALL)
-                        if json_match:
-                            data = json.loads(json_match.group())
-                            metrics["quality_pass"] = all(k in data for k in test["expected_keys"])
-                        else:
-                            metrics["quality_pass"] = False
-                    except:
-                        metrics["quality_pass"] = False
+        avg_metrics = {
+            "model": model,
+            "test_name": test["name"],
+            "test_type": test["type"],
+            "options": options or {},
+            "ttft_ms": statistics.mean([m["ttft_ms"] for m in round_results]),
+            "tps": statistics.mean([m["tps"] for m in round_results]),
+            "tps_std": statistics.stdev([m["tps"] for m in round_results]) if rounds > 1 else 0.0,
+            "peak_power_w": max([m["power"] for m in round_results]),
+            "total_tokens": round_results[0]["tokens"],
+            "quality_pass": None,
+            "status": "Success"
+        }
 
-        except Exception as e:
-            metrics["status"] = f"Error: {str(e)}"
-            telemetry.stop()
+        output = round_results[0]["output"]
+        if test["type"] == "quality" and "expected" in test:
+            avg_metrics["quality_pass"] = test["expected"] in output
+        elif test["type"] == "code":
+            avg_metrics["quality_pass"] = self._verify_code(output)
 
-        return metrics
+        return avg_metrics
 
 class ComparisonEngine:
     @staticmethod
@@ -193,7 +199,7 @@ class ComparisonEngine:
         score = (s_tps * w_tps) + (s_ttft * w_ttft) + (s_quality * w_quality)
         return round(score, 1)
 
-async def execute_suite(backend: BaseBackend, models: List[str], tests: List[Dict], matrix_options: Optional[List[Dict]] = None):
+async def execute_suite(backend: BaseBackend, models: List[str], tests: List[Dict], matrix_options: Optional[List[Dict]] = None, rounds: int = 1):
     engine = BenchmarkEngine(backend)
     results = []
     matrix = matrix_options or [None]
@@ -202,6 +208,6 @@ async def execute_suite(backend: BaseBackend, models: List[str], tests: List[Dic
     for model in models:
         for option in matrix:
             for test in tests:
-                res = await engine.run_benchmark(model, test, option)
+                res = await engine.run_benchmark(model, test, option, rounds)
                 results.append(res)
     return results

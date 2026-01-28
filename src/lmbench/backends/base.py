@@ -12,6 +12,11 @@ class BaseBackend(ABC):
         pass
 
     @abstractmethod
+    async def get_loaded_models(self) -> List[Dict]:
+        """Return a list of models currently loaded in VRAM/RAM."""
+        pass
+
+    @abstractmethod
     async def stream_generate(self, model: str, prompt: str) -> AsyncGenerator[Dict, None]:
         """Stream responses from the backend."""
         pass

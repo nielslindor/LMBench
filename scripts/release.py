@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v1.0.0 - The Gold Standard Release: Full real-time metrics, live dashboard, hardware telemetry, quality suites, and model rankings."
+    changelog = "v1.2.1 - The Intelligent Suite: Added smart context-aware diagnostics to the Doctor and expanded the Model Registry for diverse 10-model selections."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")

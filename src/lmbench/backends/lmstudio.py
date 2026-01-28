@@ -14,6 +14,14 @@ class LMStudioBackend(BaseBackend):
             pass
         return []
 
+    async def get_loaded_models(self) -> List[Dict]:
+        # LM Studio usually only loads one model at a time via the UI.
+        # We check the first available model as a proxy for the 'loaded' one.
+        models = await self.get_models()
+        if models:
+            return [{"name": models[0], "size": "Unknown"}]
+        return []
+
     async def stream_generate(self, model: str, prompt: str, options: Optional[Dict] = None) -> AsyncGenerator[Dict, None]:
         async with httpx.AsyncClient(timeout=None) as client:
             # Note: LM Studio handles offloading in its GUI, 
