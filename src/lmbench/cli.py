@@ -3,7 +3,7 @@ import asyncio
 from typing import List, Optional
 from rich.console import Console
 from .system import probe, health
-from .backends import discovery
+from .backends import discovery, launcher
 from .core import engine, updater, recommender, config
 from .core.reporter import Reporter
 
@@ -42,7 +42,7 @@ def pull(model_name: str):
     Pull a model to a local backend (currently supports Ollama).
     """
     backends = discovery.run_discovery()
-    ollama = next((b for b in backends if b.name == "Ollama"), None)
+    ollama = next((b for b, running in backends if b.name == "Ollama"), None)
     
     if not ollama:
         console.print("[red]Ollama backend not found or not running.[/red]")
@@ -67,13 +67,22 @@ def pull(model_name: str):
     console.print(f"[bold green]✔ Successfully pulled {model_name}![/bold green]")
 
 @app.command()
-def recommend():
+def recommend(
+    pull_needed: bool = typer.Option(False, "--pull", "-p", help="Interactively pull recommended models")
+):
     """
     Recommend models based on your hardware profile.
     """
     system_info = probe.get_system_info()
     rec = recommender.Recommender(system_info)
+    selected = rec.select_top_10()
     rec.print_recommendations()
+    
+    if pull_needed:
+        console.print("\n[bold blue]Interactive Pull[/bold blue]")
+        for m in selected:
+            if typer.confirm(f"Do you want to pull {m['id']}?"):
+                pull(m['id'])
 
 @app.command()
 def update():
@@ -90,8 +99,7 @@ def doctor():
     doc = health.SystemDoctor()
     doc.run_check()
 
-from .backends import discovery, launcher
-
+@app.command()
 def run(
     model: Optional[List[str]] = typer.Option(None, "--model", "-m", help="Specific model(s) to benchmark"),
     all_models: bool = typer.Option(False, "--all", "-a", help="Benchmark all discovered models"),
@@ -108,14 +116,68 @@ def run(
     mgr = config.ConfigManager()
     cfg = mgr.load()
     
-    # Resolve parameters (Cli flag > Config > Default)
     final_rounds = rounds if rounds is not None else cfg.rounds
     final_deep = deep if deep is not None else cfg.deep
     final_matrix = matrix if matrix is not None else cfg.matrix
     
     console.print("[bold green]LMBench[/bold green] is starting...", style="bold blue")
     
-    # ... health check and discovery logic ...
+    # 0. Health Check
+    doc = health.SystemDoctor()
+    issues = doc.diagnose()
+    high_priority = [i for i in issues if i["severity"] == "High"]
+    if high_priority:
+        console.print(f"\n[bold red]⚠ WARNING: {len(high_priority)} high-priority health issues detected![/bold red]")
+        console.print("[dim]Run 'lmbench doctor' for details. Results may be inaccurate.[/dim]\n")
+
+    # 1. System Probe
+    system_info = probe.print_system_info()
+    
+    # 2. Backend Discovery & Launch
+    disco = discovery.BackendDiscovery()
+    found_backends = asyncio.run(disco.discover())
+    
+    if not found_backends:
+        console.print("[red]No local LLM backends found.[/red]")
+        return
+
+    online_backends = [b for b, running in found_backends if running]
+    if not online_backends and auto_start:
+        target_b, _ = found_backends[0]
+        l = launcher.BackendLauncher()
+        if l.launch(target_b.name):
+            if l.wait_for_backend(target_b.name):
+                online_backends = discovery.print_backend_status()
+            else:
+                console.print(f"[red]Failed to start {target_b.name} within timeout.[/red]")
+                return
+        else:
+            console.print(f"[red]{target_b.name} found but could not be auto-started.[/red]")
+            return
+    elif not online_backends:
+        discovery.print_backend_status()
+        console.print("\n[yellow]No backends are running. Use --start to auto-launch them.[/yellow]")
+        return
+    else:
+        discovery.print_backend_status()
+
+    # 3. Selection
+    selected_backend = online_backends[0]
+    
+    if not model and not all_models:
+        rec_eng = recommender.Recommender(system_info)
+        top_recs = rec_eng.select_top_10()
+        available_ids = set(selected_backend.discovered_models)
+        ready_to_test = [m for m in top_recs if m["id"] in available_ids]
+        
+        if ready_to_test:
+            models_to_test = [ready_to_test[0]["id"]]
+            console.print(f"\n[yellow]Selected top recommended & installed model: [bold]{models_to_test[0]}[/bold][/yellow]")
+        else:
+            models_to_test = [selected_backend.discovered_models[0]]
+            console.print(f"\n[yellow]No top recommendations installed. Using: [bold]{models_to_test[0]}[/bold][/yellow]")
+    else:
+        models_to_test = model or selected_backend.discovered_models
 
     # 4. Define Tests & Matrix
     tests = []

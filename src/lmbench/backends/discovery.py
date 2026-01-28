@@ -48,7 +48,7 @@ class BackendDiscovery:
     async def discover(self) -> List[Tuple[Union[OllamaBackend, LMStudioBackend], bool]]:
         tasks = [self.check_backend(name, url, cls) for name, url, cls in self.potential_backends]
         results = await asyncio.gather(*tasks)
-        return [r for r in results if r is not None]
+        return [r for r in results if r[0] is not None]
 
 def run_discovery():
     discovery = BackendDiscovery()
@@ -69,7 +69,9 @@ def print_backend_status():
     table.add_column("URL", style="dim")
 
     valid_backends = []
-    for b, running in backends:
+    for res in backends:
+        if res is None: continue
+        b, running = res
         status = "Online" if running else "[dim]Offline (Installed)[/dim]"
         model_count = str(len(b.discovered_models)) if running else "-"
         table.add_row(b.name, status, model_count, b.url)

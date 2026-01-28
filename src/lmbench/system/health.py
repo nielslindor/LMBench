@@ -17,12 +17,13 @@ class SystemDoctor:
         # 1. Check for Loaded Models across backends
         backends = run_discovery()
         loaded_models = []
-        for b in backends:
-            # We run the async check in a sync loop for simplicity here
-            loaded = asyncio.run(b.get_loaded_models())
-            if loaded:
-                for m in loaded:
-                    loaded_models.append({"backend": b.name, "model": m.get("name") or m.get("id")})
+        for b, running in backends:
+            if running:
+                # We run the async check in a sync loop for simplicity here
+                loaded = asyncio.run(b.get_loaded_models())
+                if loaded:
+                    for m in loaded:
+                        loaded_models.append({"backend": b.name, "model": m.get("name") or m.get("id")})
 
         # 2. Check RAM Pressure
         ram_usage_pct = psutil.virtual_memory().percent
