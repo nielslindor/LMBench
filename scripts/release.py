@@ -36,7 +36,7 @@ def release():
 
     # 4. Create GitHub Release
     print("🏷️ Creating GitHub release...")
-    changelog = "v2.2.1 - Installer Fix: Updated install.sh to explicitly check for and install python3-pip if missing, even when python3 is present."
+    changelog = "v2.3.0 - High-Fidelity UX: Overhauled the Linux installer with a beautiful, animated UI and implemented an automated Virtual Environment (venv) strategy to resolve PEP 668 errors."
     run_command(f'gh release create v{version} --title "v{version}" --notes "{changelog}"', "Failed to create GitHub release")
 
     print(f"✅ Successfully released v{version}!")
