@@ -25,23 +25,26 @@ NC='\033[0m'
 # --- UI Helpers ---
 draw_progress_bar() {
     local percent=$1
+    local task=$2
     local filled_chars=$(( percent / 4 ))
     local empty_chars=$(( 25 - filled_chars ))
-    printf "\r%b➜ Installing: [" "${YELLOW}"
+    
+    # Clear the current line and redraw
+    printf "\r\033[K%b➜ Installing: [" "${YELLOW}"
     printf "%b" "${GREEN}"
     for ((i=0; i<filled_chars; i++)); do printf "█"; done
     printf "%b" "${NC}"
     for ((i=0; i<empty_chars; i++)); do printf "-"; done
-    printf "] %d%%" "$percent"
+    printf "] %d%% %b(%s)%b" "$percent" "${BLUE}" "$task" "${NC}"
 }
 
 header() {
-    clear
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE}   LMBench - Professional Standard Installer${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
+# --- Main ---
 header
 
 # 1. Early Sudo Validation
@@ -55,34 +58,37 @@ echo -ne "${YELLOW}➜ Preparing clean slate...${NC}"
 rm -rf "$INSTALL_DIR"
 echo -e " ${GREEN}Done${NC}"
 
+# 3. Installation Flow with Progress
 steps=5
 current=0
+
 update_progress() {
     current=$((current + 1))
+    local task=$1
     percent=$((current * 100 / steps))
-    draw_progress_bar $percent
+    draw_progress_bar $percent "$task"
 }
 
 # Step 1: System Packages
-update_progress
+update_progress "System Prerequisites (Python, venv)"
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     sudo apt-get update -y &>/dev/null
     sudo apt-get install -y python3 python3-venv python3-pip build-essential &>/dev/null
 fi
 
 # Step 2: Virtual Environment
-update_progress
+update_progress "Isolated Python Environment"
 mkdir -p "$INSTALL_DIR"
 chown "$REAL_USER:$REAL_USER" "$INSTALL_DIR"
 sudo -u "$REAL_USER" python3 -m venv "$VENV_PATH" &>/dev/null
 
 # Step 3: Core Dependencies
-update_progress
-sudo -u "$REAL_USER" "$VENV_PATH/bin/python" -m pip install --upgrade pip &>/dev/null
-sudo -u "$REAL_USER" "$VENV_PATH/bin/python" -m pip install -e . &>/dev/null
+update_progress "LMBench Core & Dependencies"
+sudo -u "$REAL_USER" "$VENV_PATH/bin/python3" -m pip install --upgrade pip &>/dev/null
+sudo -u "$REAL_USER" "$VENV_PATH/bin/python3" -m pip install -e . &>/dev/null
 
 # Step 4: Command Shim
-update_progress
+update_progress "Global Command Shim"
 mkdir -p "$BIN_DIR"
 cat <<EOF > "$BIN_DIR/$BIN_NAME"
 #!/bin/bash
@@ -92,7 +98,7 @@ chmod +x "$BIN_DIR/$BIN_NAME"
 chown "$REAL_USER:$REAL_USER" "$BIN_DIR/$BIN_NAME"
 
 # Step 5: Path Configuration
-update_progress
+update_progress "System Path Integration"
 if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
     ln -sf "$BIN_DIR/$BIN_NAME" "/usr/local/bin/$BIN_NAME" &>/dev/null
 fi
